@@ -1,0 +1,26 @@
+{
+	"name": "cards-maker",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"build": "tsc",
+		"start": "node dist/index.js",
+		"dev": "tsc --watch"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "module",
+	"devDependencies": {
+		"@biomejs/biome": "2.3.11",
+		"@types/node": "^25.0.9",
+		"typescript": "^5.9.3"
+	},
+	"dependencies": {
+		"@types/cli-progress": "^3.11.6",
+		"basic-ftp": "^5.1.0",
+		"cli-progress": "^3.12.0",
+		"tar": "^7.5.6"
+	}
+}
