@@ -1,0 +1,10 @@
+[
+	{
+		"lang": "jp",
+		"name": "jmdict",
+		"protocol": "ftp",
+		"url": "http://ftp.edrdg.org/pub/Nihongo/JMdict.gz",
+		"compressType": "gz",
+		"fileType": "xml"
+	}
+]
