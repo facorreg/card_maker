@@ -1,4 +1,5 @@
 import { access, constants } from "node:fs/promises";
+import type { DataTypes } from "./constants.js";
 import { STEPS } from "./constants.js";
 import { AssetError, AssetErrorCodes } from "./errors.js";
 
@@ -19,18 +20,34 @@ async function customAccess(url: string, c: AccessMode): Promise<boolean> {
   return true;
 }
 
-export default function customAccessHandler(
-  filePath: string,
-  extension: string,
+export default async function customAccessHandler(
+  path: string,
+  type: DataTypes,
 ): Promise<STEPS> {
-  const isXmlExt = extension === "xml";
+  try {
+    const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
+    await customAccess(path, accessFlag);
 
-  return customAccess(filePath, constants.W_OK)
-    .then(() => (isXmlExt ? STEPS.PARSE_FILE : STEPS.DECOMPRESS))
-    .catch((err) => {
-      if (err.code !== AssetErrorCodes.FILE_STATE_MISSING)
-        return Promise.reject(err);
+    switch (type) {
+      case "xml":
+        return STEPS.PARSE_FILE;
+      case "gz":
+        return STEPS.UNZIP;
+      case "zip":
+        return STEPS.UNZIP;
+      case "folder":
+        return STEPS.NO_ACTION;
+      default:
+        return STEPS.NO_ACTION;
+    }
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException;
 
-      return isXmlExt ? STEPS.CHECK_COMPRESSED_ARCHIVE : STEPS.DOWNLOAD;
-    });
+    if (err.code !== AssetErrorCodes.FILE_STATE_MISSING)
+      return Promise.reject(err);
+
+    return type === "xml" || type === "folder"
+      ? STEPS.CHECK_COMPRESSED_ARCHIVE
+      : STEPS.DOWNLOAD;
+  }
 }

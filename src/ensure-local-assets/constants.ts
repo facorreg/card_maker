@@ -1,17 +1,22 @@
+export type DecompressedTypes = "xml" | "folder";
+export type CompressionTypes = "zip" | "gz";
+export type DataTypes = DecompressedTypes | CompressionTypes;
+
 export interface Manifest {
   lang: string;
   name: string;
-  protocol: string;
   url: string;
-  compressType: string;
-  fileType: string;
+  compressType: CompressionTypes;
+  type: DecompressedTypes;
 }
 
 export enum STEPS {
   NOT_STARTED = "NOT_STARTED",
   DOWNLOAD = "DOWNLOAD",
   CHECK_COMPRESSED_ARCHIVE = "CHECK_COMPRESSED_ARCHIVE",
-  DECOMPRESS = "DECOMPRESS",
+  GUNZIP = "GUNZIP",
+  UNZIP = "UNZIP",
   PARSE_FILE = "PARSE_FILE",
+  NO_ACTION = "NO_ACTION",
   CLEANUP = "CLEANUP",
 }
