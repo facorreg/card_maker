@@ -45,4 +45,15 @@ export default class StepsReporter {
       );
     }
   }
+
+  rmError(err: DeletionError) {
+    if (err.state === "not_found") {
+      logger.warn(`Folder deletion: ${err.path} not found`);
+    } else {
+      logger.warn(`Folder ${err.path} may not have been properly deleted.`);
+      logger.warn(
+        `${err.cause?.code ?? "no error code"}: ${err.cause?.message || "no error message"}`,
+      );
+    }
+  }
 }

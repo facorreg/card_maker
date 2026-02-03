@@ -36,12 +36,12 @@ export default function safeDeletion(
     .catch((e) => {
       const error = e as NodeJS.ErrnoException;
 
-      const unlinkError = new DeletionError(
+      const deletionError = new DeletionError(
         error.code === "ENOENT" ? "not_found" : "other",
         path,
         e,
       );
 
-      return Promise.reject(unlinkError);
+      return Promise.reject(deletionError);
     });
 }

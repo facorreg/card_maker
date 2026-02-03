@@ -1,7 +1,7 @@
 import { access, constants } from "node:fs/promises";
-import type { DataTypes } from "./constants.js";
-import { STEPS } from "./constants.js";
-import { AssetError, AssetErrorCodes } from "./errors.js";
+import type { DataTypes } from "../constants.js";
+import { STEPS } from "../constants.js";
+import { AssetError, AssetErrorCodes } from "../errors.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
@@ -41,7 +41,7 @@ export default async function customAccessHandler(
         return STEPS.NO_ACTION;
     }
   } catch (e) {
-    const err = e as NodeJS.ErrnoException;
+    const err = e as AssetError;
 
     if (err.code !== AssetErrorCodes.FILE_STATE_MISSING)
       return Promise.reject(err);
