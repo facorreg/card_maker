@@ -1,16 +1,19 @@
 import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
+import type { TransformCallback } from "node:stream";
+import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
 import extract from "extract-zip";
+import yauzl from "yauzl";
 import sd from "../utils/safe-deletion.js";
 import type { Manifest } from "./constants.js";
 import { STEPS } from "./constants.js";
 import fetchWithProgress from "./fetch-with-progress/index.js";
+import type SingleBar from "./fetch-with-progress/progress.js";
 import type StepsReporter from "./reporter.js";
 import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
 import customAccess from "./utils/custom-access.js";
-
 export interface Step {
   name: STEPS;
   run: () => Promise<void> | Promise<STEPS>;
@@ -18,9 +21,45 @@ export interface Step {
   next?: STEPS;
 }
 
+function decompressZip(zipPath: string, decompressedPath: string) {
+  yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+    if (err) throw err;
+    zipfile.readEntry();
+    zipfile.on("entry", (entry) => {
+      if (/\/$/.test(entry.fileName)) {
+        // Directory file names end with '/'.
+        // Note that entries for directories themselves are optional.
+        // An entry's fileName implicitly requires its parent directories to exist.
+        zipfile.readEntry();
+      } else {
+        // file entry
+        zipfile.openReadStream(entry, (err, readStream) => {
+          if (err) throw err;
+          readStream.on("end", () => {
+            zipfile.readEntry();
+          });
+          // const transform = new Transform({
+          //   transform: (chunk: string, _, callback: TransformCallback) => {
+          //     console.log(chunk);
+          //   },
+          // });
+
+          readStream
+            // .pipe(transform)
+            .pipe(fs.createWriteStream(decompressedPath))
+            .on("finish", () => {
+              zipfile.readEntry();
+            });
+        });
+      }
+    });
+  });
+}
+
 export default function getSteps(
   manifest: Manifest,
   reporter: StepsReporter,
+  singleBar: SingleBar,
 ): Step[] {
   const path = buildPath(manifest.name, manifest.type);
   const compressedPath = buildPath(manifest.name, manifest.compressType);
@@ -46,12 +85,10 @@ export default function getSteps(
     {
       name: STEPS.DOWNLOAD,
       async run() {
-        await fetchWithProgress(manifest, compressedPath);
-        return;
+        await fetchWithProgress(manifest, compressedPath, singleBar);
       },
       async cleanup() {
         await safeDeletion(compressedPath, false);
-        return;
       },
       next: STEPS.UNZIP,
     },
@@ -83,7 +120,6 @@ export default function getSteps(
       name: STEPS.CLEANUP,
       async run() {
         await safeDeletion(compressedPath, false);
-        return;
       },
       next: STEPS.NO_ACTION,
     },

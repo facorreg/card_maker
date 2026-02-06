@@ -1,12 +1,13 @@
 import { once } from "node:events";
 import fs from "node:fs";
 import type { Manifest } from "../constants.js";
-import Progress from "./progress.js";
+import type SingleBar from "../fetch-with-progress/progress.js";
 import ErrorReporter from "./reporter.js";
 
 export default async function fetchWithProgress(
   manifest: Manifest,
   filePath: string,
+  progress: SingleBar,
 ): Promise<void> {
   const errorReporter = new ErrorReporter();
 
@@ -21,8 +22,6 @@ export default async function fetchWithProgress(
   const contentLength = Number(res.headers.get("content-length") ?? 0);
   const fileName = `${manifest.name}.${manifest.compressType}`;
   const file = fs.createWriteStream(filePath);
-
-  const progress = new Progress();
 
   progress.start(fileName, contentLength);
 

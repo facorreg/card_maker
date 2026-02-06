@@ -1,15 +1,18 @@
+import type { MultiBar } from "cli-progress";
 import dictionariesManifest from "../../dictionaries.manifest.json" with {
   type: "json",
 };
 import type { Manifest } from "./constants.js";
 import { STEPS } from "./constants.js";
 import type { AssetError } from "./errors.js";
+import SingleBar, { initMultiBar } from "./fetch-with-progress/progress.js";
 import getSteps, { type Step } from "./get-steps.js";
 import StepsReporter from "./reporter.js";
 
-async function runSteps(manifest: Manifest): Promise<void> {
+async function runSteps(manifest: Manifest, multiBar: MultiBar): Promise<void> {
   const reporter = new StepsReporter(manifest);
-  const steps: Step[] = getSteps(manifest, reporter);
+  const progressBar = new SingleBar(multiBar);
+  const steps: Step[] = getSteps(manifest, reporter, progressBar);
 
   let stepName: STEPS = STEPS.NOT_STARTED;
 
@@ -36,7 +39,9 @@ async function runSteps(manifest: Manifest): Promise<void> {
 }
 
 export default async function ensureLocalAssets(): Promise<void> {
+  const multiBar = initMultiBar();
+
   for (const manifest of dictionariesManifest as Manifest[]) {
-    await runSteps(manifest);
+    await runSteps(manifest, multiBar);
   }
 }
