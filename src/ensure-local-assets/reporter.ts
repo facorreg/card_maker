@@ -11,7 +11,7 @@ export default class StepsReporter {
   }
 
   fetchSuccess() {
-    const fileName = `${this.manifest.name}.${this.manifest.compressType}`;
+    const fileName = `${this.manifest.name}.${this.manifest.inputType}`;
     logger.success(`Downloaded: ${fileName}`);
   }
 
@@ -29,7 +29,7 @@ export default class StepsReporter {
 
   error(manifest: Manifest, err: NodeJS.ErrnoException | AssetError) {
     logger.warn(
-      `${manifest.name}.${manifest.type} could not be properly downloaded or extracted`,
+      `${manifest.name}.${manifest.outputType} could not be properly downloaded or extracted`,
     );
     logger.warn(`${err.code}: ${err.message}`);
     logger.warn(`Cause: ${err.cause ?? "No other cause specified"}`);

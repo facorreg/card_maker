@@ -1,117 +1,91 @@
 import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
-import type { TransformCallback } from "node:stream";
-import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import extract from "extract-zip";
-import yauzl from "yauzl";
+import type { DeletionReturn } from "../utils/safe-deletion.js";
 import sd from "../utils/safe-deletion.js";
-import type { Manifest } from "./constants.js";
+import type { AsyncNoThrow, Manifest } from "./constants.js";
 import { STEPS } from "./constants.js";
-import fetchWithProgress from "./fetch-with-progress/index.js";
-import type SingleBar from "./fetch-with-progress/progress.js";
+import fetchWithProgress from "./fetch/index.js";
+import type { MultiBar } from "./progress/index.js";
 import type StepsReporter from "./reporter.js";
+import unzip from "./uncompress/unzip/index.js";
 import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
 import customAccess from "./utils/custom-access.js";
 export interface Step {
   name: STEPS;
-  run: () => Promise<void> | Promise<STEPS>;
-  cleanup?: () => Promise<void>;
+  run: () => AsyncNoThrow<string | STEPS | undefined> | DeletionReturn;
+  cleanup?: () => DeletionReturn;
   next?: STEPS;
-}
-
-function decompressZip(zipPath: string, decompressedPath: string) {
-  yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
-    if (err) throw err;
-    zipfile.readEntry();
-    zipfile.on("entry", (entry) => {
-      if (/\/$/.test(entry.fileName)) {
-        // Directory file names end with '/'.
-        // Note that entries for directories themselves are optional.
-        // An entry's fileName implicitly requires its parent directories to exist.
-        zipfile.readEntry();
-      } else {
-        // file entry
-        zipfile.openReadStream(entry, (err, readStream) => {
-          if (err) throw err;
-          readStream.on("end", () => {
-            zipfile.readEntry();
-          });
-          // const transform = new Transform({
-          //   transform: (chunk: string, _, callback: TransformCallback) => {
-          //     console.log(chunk);
-          //   },
-          // });
-
-          readStream
-            // .pipe(transform)
-            .pipe(fs.createWriteStream(decompressedPath))
-            .on("finish", () => {
-              zipfile.readEntry();
-            });
-        });
-      }
-    });
-  });
 }
 
 export default function getSteps(
   manifest: Manifest,
   reporter: StepsReporter,
-  singleBar: SingleBar,
+  multiBar: MultiBar,
 ): Step[] {
-  const path = buildPath(manifest.name, manifest.type);
-  const compressedPath = buildPath(manifest.name, manifest.compressType);
-  const isFolder = manifest.type === "folder";
+  const outputPath = buildPath(manifest.name, manifest.outputType);
+  const inputPath = buildPath(manifest.name, manifest.inputType);
+  const isFolder = manifest.outputType === "folder";
 
-  const safeDeletion = (path: string, isDir: boolean) =>
-    sd(path, isDir).catch(isFolder ? reporter.rmError : reporter.unlinkError);
+  const safeDeletion = async (
+    outputPath: string,
+    isDir: boolean,
+  ): DeletionReturn => {
+    const delResult = await sd(outputPath, isDir);
+    const [err] = delResult;
+
+    if (err) {
+      isFolder ? reporter.rmError(err) : reporter.unlinkError(err);
+    }
+
+    return delResult;
+  };
 
   return [
     {
       name: STEPS.NOT_STARTED,
       async run() {
         await mkdir(getDictionariesDirPath(), { recursive: true });
-        return await customAccess(path, manifest.type);
+        return await customAccess(outputPath, manifest.outputType);
       },
     },
     {
       name: STEPS.CHECK_COMPRESSED_ARCHIVE,
       async run() {
-        return customAccess(compressedPath, manifest.compressType);
+        return customAccess(inputPath, manifest.inputType);
       },
     },
     {
       name: STEPS.DOWNLOAD,
       async run() {
-        await fetchWithProgress(manifest, compressedPath, singleBar);
+        return fetchWithProgress(manifest, inputPath, multiBar);
       },
       async cleanup() {
-        await safeDeletion(compressedPath, false);
+        return safeDeletion(inputPath, false);
       },
-      next: STEPS.UNZIP,
+      next: STEPS.UNCOMPRESS,
     },
     {
-      name: STEPS.UNZIP,
+      name: STEPS.UNCOMPRESS,
       async run() {
-        reporter.decompressStart();
+        // reporter.decompressStart();
 
-        if (manifest.compressType === "gz") {
+        if (manifest.inputType === "gz") {
           await pipeline(
-            fs.createReadStream(compressedPath),
+            fs.createReadStream(inputPath),
             createGunzip(),
-            fs.createWriteStream(path),
+            fs.createWriteStream(outputPath),
           );
         } else {
-          // zip
-          await extract(compressedPath, { dir: path });
+          return unzip(outputPath, inputPath, manifest, multiBar);
         }
 
-        reporter.decompressEnd();
+        // reporter.decompressEnd();
+        return [null];
       },
       async cleanup() {
-        await safeDeletion(path, isFolder);
+        return safeDeletion(outputPath, isFolder);
       },
       next: STEPS.CLEANUP,
     },
@@ -119,14 +93,14 @@ export default function getSteps(
       // success cleanup
       name: STEPS.CLEANUP,
       async run() {
-        await safeDeletion(compressedPath, false);
+        return safeDeletion(inputPath, false);
       },
       next: STEPS.NO_ACTION,
     },
     {
       name: STEPS.NO_ACTION,
       async run() {
-        return;
+        return [null];
       },
     },
   ];

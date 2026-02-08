@@ -1,23 +1,9 @@
 [
 	{
 		"lang": "jp",
-		"name": "jmdict",
-		"url": "http://ftp.edrdg.org/pub/Nihongo/JMdict.gz",
-		"compressType": "gz",
-		"type": "xml"
-	},
-	{
-		"lang": "jp",
-		"name": "kanjidic",
-		"url": "https://www.edrdg.org/kanjidic/kanjidic2.xml.gz",
-		"compressType": "gz",
-		"type": "xml"
-	},
-	{
-		"lang": "jp",
 		"name": "kanjivg",
 		"url": "https://github.com/KanjiVG/kanjivg/releases/download/r20250816/kanjivg-20250816-all.zip",
-		"compressType": "zip",
-		"type": "folder"
+		"inputType": "zip",
+		"outputType": "folder"
 	}
 ]

@@ -1,11 +1,11 @@
 import { access, constants } from "node:fs/promises";
-import type { DataTypes } from "../constants.js";
+import type { AsyncNoThrow, DataTypes } from "../constants.js";
 import { STEPS } from "../constants.js";
 import { AssetError, AssetErrorCodes } from "../errors.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
-async function customAccess(url: string, c: AccessMode): Promise<boolean> {
+async function customAccess(url: string, c: AccessMode): AsyncNoThrow<boolean> {
   try {
     await access(url, c);
   } catch (e) {
@@ -14,40 +14,36 @@ async function customAccess(url: string, c: AccessMode): Promise<boolean> {
       err.code === "ENOENT"
         ? AssetErrorCodes.FILE_STATE_MISSING
         : AssetErrorCodes.FILE_STATE_UNREACHABLE;
-    return Promise.reject(new AssetError({ code: errCode, cause: err }));
+    return [new AssetError({ code: errCode, cause: err }), false];
   }
-
-  return true;
+  return [null, true];
 }
 
 export default async function customAccessHandler(
   path: string,
   type: DataTypes,
-): Promise<STEPS> {
-  try {
-    const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
-    await customAccess(path, accessFlag);
+): AsyncNoThrow<STEPS> {
+  const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
+  const [err] = await customAccess(path, accessFlag);
 
-    switch (type) {
-      case "xml":
-        return STEPS.PARSE_FILE;
-      case "gz":
-        return STEPS.UNZIP;
-      case "zip":
-        return STEPS.UNZIP;
-      case "folder":
-        return STEPS.NO_ACTION;
-      default:
-        return STEPS.NO_ACTION;
-    }
-  } catch (e) {
-    const err = e as AssetError;
-
-    if (err.code !== AssetErrorCodes.FILE_STATE_MISSING)
-      return Promise.reject(err);
+  if (err !== null) {
+    if (err.code !== AssetErrorCodes.FILE_STATE_MISSING) return [err];
 
     return type === "xml" || type === "folder"
-      ? STEPS.CHECK_COMPRESSED_ARCHIVE
-      : STEPS.DOWNLOAD;
+      ? [null, STEPS.CHECK_COMPRESSED_ARCHIVE]
+      : [null, STEPS.DOWNLOAD];
+  }
+
+  switch (type) {
+    case "xml":
+      return [null, STEPS.PARSE_FILE];
+    case "gz":
+      return [null, STEPS.UNCOMPRESS];
+    case "zip":
+      return [null, STEPS.UNCOMPRESS];
+    case "folder":
+      return [null, STEPS.NO_ACTION];
+    default:
+      return [null, STEPS.NO_ACTION];
   }
 }

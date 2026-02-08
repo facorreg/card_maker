@@ -1,4 +1,5 @@
 import { rm, unlink } from "node:fs/promises";
+import type { AsyncNoThrow } from "../ensure-local-assets/constants.js";
 
 type DeletionStates = "success" | "not_found" | "other";
 type DeletionStatesError = Exclude<DeletionStates, "success">;
@@ -25,23 +26,25 @@ export class DeletionError extends Error {
   }
 }
 
-type DeletionReturn = Promise<DeletionResolve | DeletionError>;
+export type DeletionReturn = AsyncNoThrow<DeletionResolve, DeletionError>;
 
-export default function safeDeletion(
+export default async function safeDeletion(
   path: string,
   isDir: boolean,
 ): DeletionReturn {
-  return (isDir ? rm(path, { recursive: true }) : unlink(path))
-    .then(() => ({ state: "success", path }) as DeletionResolve)
-    .catch((e) => {
-      const error = e as NodeJS.ErrnoException;
+  try {
+    await (isDir ? rm(path, { recursive: true }) : unlink(path));
+    const ret = { state: "success", path } as DeletionResolve;
+    return [null, ret];
+  } catch (e) {
+    const error = e as NodeJS.ErrnoException;
 
-      const deletionError = new DeletionError(
-        error.code === "ENOENT" ? "not_found" : "other",
-        path,
-        e,
-      );
+    const deletionError = new DeletionError(
+      error.code === "ENOENT" ? "not_found" : "other",
+      path,
+      error,
+    );
 
-      return Promise.reject(deletionError);
-    });
+    return [deletionError];
+  }
 }
