@@ -1,12 +1,12 @@
 import type { Entry } from "yauzl";
-import type { AsyncNoThrow, Manifest } from "../../constants.js";
+import type { AsyncNoThrow } from "../../constants.js";
 import type { MultiBar } from "../../progress/index.js";
 import Unzip from "./unzip.js";
 
 export default async function unzip(
   outputPath: string,
   inputPath: string,
-  manifest: Manifest,
+  inputFileName: string,
   multiBar: MultiBar,
 ): AsyncNoThrow<string> {
   const unzip = new Unzip({
@@ -20,9 +20,8 @@ export default async function unzip(
     /* handle */ console.log(errGDS);
   }
 
-  const inputName = `${manifest.name}.zip`;
   const [errPbCreate, pb] = multiBar.create(
-    inputName,
+    inputFileName,
     "uncompress",
     uncompressedSize,
   );
@@ -31,21 +30,23 @@ export default async function unzip(
     /* handle */ console.log(errPbCreate);
   }
 
-  let unzipped = 0;
+  let uncompressed = 0;
 
   unzip.onTransform = (chunk: Buffer, entry: Entry) => {
-    unzipped += chunk.length;
-    pb?.update(unzipped, { fileName: entry.fileName });
+    uncompressed += chunk.length;
+    pb?.update(uncompressed, { fileName: entry.fileName });
   };
 
-  const applyDefaultName = () => pb?.update(unzipped, { name: inputName });
+  const resetFileName = () => {
+    pb?.update(uncompressed, { fileName: inputFileName });
+  };
 
   unzip.onError = () => {
-    applyDefaultName();
+    resetFileName();
     pb?.error();
   };
   unzip.onSuccess = () => {
-    applyDefaultName();
+    resetFileName();
     pb?.success();
   };
 

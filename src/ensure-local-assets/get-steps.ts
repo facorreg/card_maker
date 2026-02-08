@@ -1,7 +1,5 @@
-import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { pipeline } from "node:stream/promises";
-import { createGunzip } from "node:zlib";
+
 import type { DeletionReturn } from "../utils/safe-deletion.js";
 import sd from "../utils/safe-deletion.js";
 import type { AsyncNoThrow, Manifest } from "./constants.js";
@@ -9,6 +7,7 @@ import { STEPS } from "./constants.js";
 import fetchWithProgress from "./fetch/index.js";
 import type { MultiBar } from "./progress/index.js";
 import type StepsReporter from "./reporter.js";
+import gunzip from "./uncompress/gunzip/index.js";
 import unzip from "./uncompress/unzip/index.js";
 import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
 import customAccess from "./utils/custom-access.js";
@@ -71,18 +70,12 @@ export default function getSteps(
       async run() {
         // reporter.decompressStart();
 
-        if (manifest.inputType === "gz") {
-          await pipeline(
-            fs.createReadStream(inputPath),
-            createGunzip(),
-            fs.createWriteStream(outputPath),
-          );
-        } else {
-          return unzip(outputPath, inputPath, manifest, multiBar);
-        }
+        const inputFileName = `${manifest.name}.${manifest.inputType}`;
+        const uncompress = manifest.inputType === "gz" ? gunzip : unzip;
+
+        return uncompress(outputPath, inputPath, inputFileName, multiBar);
 
         // reporter.decompressEnd();
-        return [null];
       },
       async cleanup() {
         return safeDeletion(outputPath, isFolder);

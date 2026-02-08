@@ -116,8 +116,6 @@ export default class Unzip {
             )
             .pipe(ws);
         } else readStream.pipe(ws);
-
-        readStream.pipe(ws);
       });
     });
   }

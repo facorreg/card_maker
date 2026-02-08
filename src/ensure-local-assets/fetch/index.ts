@@ -12,7 +12,7 @@ export default async function fetchWithProgress(
   const errorReporter = new ErrorReporter();
 
   const res = await fetch(manifest.url, {
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(60_000),
   });
 
   if (!res.ok) return [errorReporter.invalidStatus(res.status)];

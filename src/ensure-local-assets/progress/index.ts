@@ -26,7 +26,7 @@ const statusStates: StatusStates = {
 };
 
 function getStatusState(state: States, status: Status) {
-  const string = statusStates[state][status].padEnd(20);
+  const string = statusStates[state][status].padEnd(13);
 
   return string;
 }
@@ -43,12 +43,12 @@ export class MultiBar {
   bars: cliProgress.SingleBar[] = [];
 
   start(): cliProgress.MultiBar {
-    this.multiBar = new cliProgress.MultiBar(
-      {
-        format: "[{status}] | {bar} | {percentage}% | {fileName}",
-      },
-      cliProgress.Presets.shades_classic,
-    );
+    this.multiBar = new cliProgress.MultiBar({
+      format: `${"[{status}]".padEnd(15)}| {bar} | {percentage}% | {fileName}`,
+      barIncompleteChar: " ▁",
+      barCompleteChar: "▂",
+      hideCursor: true,
+    });
 
     return this.multiBar;
   }
