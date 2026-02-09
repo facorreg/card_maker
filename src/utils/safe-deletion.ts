@@ -1,20 +1,15 @@
 import { rm, unlink } from "node:fs/promises";
-import type { AsyncNoThrow } from "../ensure-local-assets/constants.js";
-
-type DeletionStates = "success" | "not_found" | "other";
-type DeletionStatesError = Exclude<DeletionStates, "success">;
-interface DeletionResolve {
-  state: DeletionStates;
-  path: string;
-}
+import { AssetErrorCodes } from "../ensure-local-assets/errors.js";
+import type { AsyncNoThrow } from "./no-throw.js";
+import asyncNoThrow from "./no-throw.js";
 
 export class DeletionError extends Error {
-  state: DeletionStatesError;
+  state: AssetErrorCodes;
   path: string;
   override cause: NodeJS.ErrnoException;
 
   constructor(
-    state: DeletionStatesError,
+    state: AssetErrorCodes,
     path: string,
     cause: NodeJS.ErrnoException,
   ) {
@@ -26,25 +21,28 @@ export class DeletionError extends Error {
   }
 }
 
-export type DeletionReturn = AsyncNoThrow<DeletionResolve, DeletionError>;
+export type DeletionReturn = AsyncNoThrow<undefined, DeletionError>;
 
 export default async function safeDeletion(
   path: string,
   isDir: boolean,
 ): DeletionReturn {
-  try {
-    await (isDir ? rm(path, { recursive: true }) : unlink(path));
-    const ret = { state: "success", path } as DeletionResolve;
-    return [null, ret];
-  } catch (e) {
-    const error = e as NodeJS.ErrnoException;
+  const ntRm = asyncNoThrow(rm);
+  const ntUnlink = asyncNoThrow(unlink);
 
-    const deletionError = new DeletionError(
-      error.code === "ENOENT" ? "not_found" : "other",
-      path,
-      error,
-    );
+  const [err] = await (isDir
+    ? ntRm(path, { recursive: true })
+    : ntUnlink(path));
 
-    return [deletionError];
-  }
+  if (err === null) return [null];
+
+  const deletionError = new DeletionError(
+    err.code === "ENOENT"
+      ? AssetErrorCodes.DELETION_FILE_NOT_FOUND
+      : AssetErrorCodes.DELETION_FAILED,
+    path,
+    err,
+  );
+
+  return [deletionError];
 }

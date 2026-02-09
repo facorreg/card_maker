@@ -1,22 +1,27 @@
 import { access, constants } from "node:fs/promises";
-import type { AsyncNoThrow, DataTypes } from "../constants.js";
+import type { AsyncNoThrow } from "../../utils/no-throw.js";
+import asyncNoThrow from "../../utils/no-throw.js";
+import type { DataTypes } from "../constants.js";
 import { STEPS } from "../constants.js";
 import { AssetError, AssetErrorCodes } from "../errors.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
-async function customAccess(url: string, c: AccessMode): AsyncNoThrow<boolean> {
-  try {
-    await access(url, c);
-  } catch (e) {
-    const err = e as NodeJS.ErrnoException;
-    const errCode =
-      err.code === "ENOENT"
-        ? AssetErrorCodes.FILE_STATE_MISSING
-        : AssetErrorCodes.FILE_STATE_UNREACHABLE;
-    return [new AssetError({ code: errCode, cause: err }), false];
-  }
-  return [null, true];
+async function customAccess(
+  url: string,
+  c: AccessMode,
+): AsyncNoThrow<undefined> {
+  const ntAccess = asyncNoThrow(access);
+  const [err] = await ntAccess(url, c);
+
+  if (err === null) return [null];
+
+  const errCode =
+    err.code === "ENOENT"
+      ? AssetErrorCodes.FILE_STATE_MISSING
+      : AssetErrorCodes.FILE_STATE_UNREACHABLE;
+
+  return [new AssetError(errCode, { cause: err })];
 }
 
 export default async function customAccessHandler(

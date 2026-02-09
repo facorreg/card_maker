@@ -5,11 +5,9 @@ import type { Manifest } from "./constants.js";
 import { STEPS } from "./constants.js";
 import getSteps, { type Step } from "./get-steps.js";
 import { MultiBar } from "./progress/index.js";
-import StepsReporter from "./reporter.js";
 
-async function runSteps(manifest: Manifest, multiBar: MultiBar): Promise<void> {
-  const reporter = new StepsReporter(manifest);
-  const steps: Step[] = getSteps(manifest, reporter, multiBar);
+async function runSteps(manifest: Manifest, multiBar: MultiBar) {
+  const steps: Step[] = getSteps(manifest, multiBar);
 
   let stepName: STEPS = STEPS.NOT_STARTED;
 
@@ -21,15 +19,15 @@ async function runSteps(manifest: Manifest, multiBar: MultiBar): Promise<void> {
     const [err, data] = await step.run();
 
     if (err) {
-      reporter.errorCleanup();
+      // reporter.errorCleanup();
       let index = steps.findIndex(({ name }) => stepName === name);
       while (index >= 0) {
         await steps[index]?.cleanup?.();
         index--;
       }
-      reporter.error(manifest, err);
+      // reporter.error(manifest, err);
 
-      return;
+      return [err];
     }
 
     const dataIsStep = Object.values(STEPS).some((step) => step === data);

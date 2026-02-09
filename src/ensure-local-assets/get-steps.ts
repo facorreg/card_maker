@@ -1,12 +1,12 @@
 import { mkdir } from "node:fs/promises";
-
+import type { AsyncNoThrow } from "../utils/no-throw.js";
+import asyncNoThrow from "../utils/no-throw.js";
 import type { DeletionReturn } from "../utils/safe-deletion.js";
-import sd from "../utils/safe-deletion.js";
-import type { AsyncNoThrow, Manifest } from "./constants.js";
+import safeDeletion from "../utils/safe-deletion.js";
+import type { Manifest } from "./constants.js";
 import { STEPS } from "./constants.js";
-import fetchWithProgress from "./fetch/index.js";
+import fetchAsset from "./fetch-asset.ts/index.js";
 import type { MultiBar } from "./progress/index.js";
-import type StepsReporter from "./reporter.js";
 import gunzip from "./uncompress/gunzip/index.js";
 import unzip from "./uncompress/unzip/index.js";
 import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
@@ -18,35 +18,26 @@ export interface Step {
   next?: STEPS;
 }
 
+// const errorReporter = {};
+
 export default function getSteps(
   manifest: Manifest,
-  reporter: StepsReporter,
   multiBar: MultiBar,
 ): Step[] {
   const outputPath = buildPath(manifest.name, manifest.outputType);
   const inputPath = buildPath(manifest.name, manifest.inputType);
   const isFolder = manifest.outputType === "folder";
 
-  const safeDeletion = async (
-    outputPath: string,
-    isDir: boolean,
-  ): DeletionReturn => {
-    const delResult = await sd(outputPath, isDir);
-    const [err] = delResult;
-
-    if (err) {
-      isFolder ? reporter.rmError(err) : reporter.unlinkError(err);
-    }
-
-    return delResult;
-  };
-
   return [
     {
       name: STEPS.NOT_STARTED,
       async run() {
-        await mkdir(getDictionariesDirPath(), { recursive: true });
-        return await customAccess(outputPath, manifest.outputType);
+        const ntMkdir = asyncNoThrow(mkdir);
+        const [err] = await ntMkdir(getDictionariesDirPath(), {
+          recursive: true,
+        });
+        if (err) return [err];
+        return customAccess(outputPath, manifest.outputType);
       },
     },
     {
@@ -58,7 +49,7 @@ export default function getSteps(
     {
       name: STEPS.DOWNLOAD,
       async run() {
-        return fetchWithProgress(manifest, inputPath, multiBar);
+        return fetchAsset(manifest, inputPath, multiBar);
       },
       async cleanup() {
         return safeDeletion(inputPath, false);

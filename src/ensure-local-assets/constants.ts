@@ -2,13 +2,6 @@ export type DecompressedTypes = "xml" | "folder";
 export type CompressionTypes = "zip" | "gz";
 export type DataTypes = DecompressedTypes | CompressionTypes;
 
-export type NoThrow<T, E extends Error = NodeJS.ErrnoException> = [
-  E | null,
-  T?,
-];
-export type AsyncNoThrow<T, E extends Error = NodeJS.ErrnoException> = Promise<
-  NoThrow<T, E>
->;
 export interface Manifest {
   lang: string;
   name: string;

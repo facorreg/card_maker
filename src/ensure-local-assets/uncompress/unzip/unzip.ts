@@ -5,7 +5,7 @@ import type { TransformCallback } from "node:stream";
 import { Transform } from "node:stream";
 import type { Entry, ZipFile } from "yauzl";
 import yauzl from "yauzl";
-import type { AsyncNoThrow, NoThrow } from "../../constants.js";
+import type { AsyncNoThrow, NoThrow } from "../../../utils/no-throw.js";
 
 interface IterateEntriesCbOptions {
   entry: Entry;

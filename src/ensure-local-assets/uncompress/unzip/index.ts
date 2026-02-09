@@ -1,5 +1,5 @@
 import type { Entry } from "yauzl";
-import type { AsyncNoThrow } from "../../constants.js";
+import type { AsyncNoThrow } from "../../../utils/no-throw.js";
 import type { MultiBar } from "../../progress/index.js";
 import Unzip from "./unzip.js";
 

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import type { AsyncNoThrow } from "../../constants.js";
+import type { AsyncNoThrow } from "../../../utils/no-throw.js";
 import type { MultiBar } from "../../progress/index.js";
 
 async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
