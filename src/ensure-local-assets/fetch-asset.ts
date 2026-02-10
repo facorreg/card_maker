@@ -3,6 +3,7 @@ import fs from "node:fs";
 import fileLogger from "../utils/logger/file.js";
 import type { AsyncNoThrow } from "../utils/no-throw.js";
 import asyncNoThrow from "../utils/no-throw.js";
+import safeDeletion from "../utils/safe-deletion.js";
 import type { MultiBar, SingleBar } from "./progress.js";
 import type { Manifest } from "./types.js";
 import { AssetError, AssetErrorCodes } from "./types.js";
@@ -31,7 +32,7 @@ async function iterateChunks(
 async function writeAsset(
   res: Response,
   manifest: Manifest,
-  filePath: string,
+  outputPath: string,
   multiBar: MultiBar,
 ): AsyncNoThrow<undefined, AssetError> {
   const contentLength = Number(res.headers.get("content-length") ?? 0);
@@ -50,7 +51,7 @@ async function writeAsset(
     });
   }
 
-  const file = fs.createWriteStream(filePath);
+  const file = fs.createWriteStream(outputPath);
 
   const ntIterateChunks = asyncNoThrow(
     iterateChunks,
@@ -66,6 +67,7 @@ async function writeAsset(
     return [null];
   } else {
     file.destroy(err);
+    await safeDeletion(outputPath, false);
     progress?.error();
   }
 
@@ -79,7 +81,7 @@ async function writeAsset(
 
 export default async function fetchAsset(
   manifest: Manifest,
-  filePath: string,
+  outputPath: string,
   multiBar: MultiBar,
 ): AsyncNoThrow<undefined, AssetError> {
   const ntFetch = asyncNoThrow(
@@ -95,5 +97,5 @@ export default async function fetchAsset(
     return [new AssetError(AssetErrorCodes.FETCH_ERROR)];
   if (!res.ok) return [new AssetError(AssetErrorCodes.HTTP_INVALID_STATUS)];
 
-  return writeAsset(res, manifest, filePath, multiBar);
+  return writeAsset(res, manifest, outputPath, multiBar);
 }

@@ -16,7 +16,7 @@ interface IterateEntriesCbOptions {
 }
 
 interface OnUncompressOpts {
-  err: NodeJS.ErrnoException | null;
+  err: AssetError | NodeJS.ErrnoException | null;
   entry: Entry;
   outputPath: string;
 }
@@ -106,7 +106,7 @@ export default class Unzip {
     return new Promise((resolve) => {
       zipfile.openReadStream(entry, async (err, readStream) => {
         if (err) {
-          resolve([err]);
+          return resolve([err]);
         }
 
         await this.mkdir(entry.fileName);
@@ -119,7 +119,7 @@ export default class Unzip {
           ws.removeAllListeners();
           readStream.removeAllListeners();
 
-          resolve([e ?? null]);
+          return resolve([e ?? null]);
         };
 
         ws.once("finish", done);

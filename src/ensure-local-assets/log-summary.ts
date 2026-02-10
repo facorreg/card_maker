@@ -39,7 +39,9 @@ async function readByDelimiter(
       }
     }
 
-    buffer += decoder.end(); // flush decoder
+    buffer += decoder.end();
+    if (buffer.length) cb(buffer);
+
     return [null];
   } catch {
     return [new Error(ReadByDelimiterErrors.RBD_R_ERROR)];
@@ -101,7 +103,7 @@ async function logSummary() {
     `Downloads => completed: ${green(downloadSuccesses)} | failed: ${red(downloadErrors)}`,
   );
   log.info(
-    `Extractions => completed ${green(uncompressSuccesses)} | failed: ${red(uncompressErrors)}`,
+    `Extractions => completed: ${green(uncompressSuccesses)} | failed: ${red(uncompressErrors)}`,
   );
   // if (err) await fileLogger({ errCode: err.message, file: "none" });
 }

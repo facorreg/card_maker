@@ -39,7 +39,6 @@ function percentage(part: number, whole: number): number {
 
 export class MultiBar {
   multiBar!: cliProgress.MultiBar;
-  // pb: cliProgress.SingleBar | undefined;
   bars: cliProgress.SingleBar[] = [];
 
   start(): cliProgress.MultiBar {
