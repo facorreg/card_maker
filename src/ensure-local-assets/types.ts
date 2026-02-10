@@ -51,15 +51,9 @@ export enum AssetErrorCodes {
   LOG_R_STREAM_ERROR = "LOG_R_STREAM_ERROR",
 }
 
-interface AssetErrorOptions {
-  // code?: AssetErrorCodes;
-  message?: string;
-  cause?: NodeJS.ErrnoException;
-}
-
 export type AssetState = STEPS | AssetErrorCodes;
 
 export interface StepReturn {
   state: AssetState;
-  cause?: NodeJS.ErrnoException;
+  cause?: Error;
 }

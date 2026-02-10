@@ -20,7 +20,8 @@ import safeDeletion from "./utils/safe-deletion.js";
   try {
     await safeDeletion(LOG_OUTPUT, false);
     await ensureLocalAssets();
-  } catch {
+  } catch (err) {
     log.error("Uncaught error");
+    log.error(JSON.stringify(err, null, 2));
   }
 })();

@@ -37,7 +37,7 @@ async function writeAsset(
   const contentLength = Number(res.headers.get("content-length") ?? 0);
   const fileName = `${manifest.name}.${manifest.inputType}`;
 
-  const [error, progress] = await multiBar.create(
+  const [error, progress] = multiBar.create(
     fileName,
     "download",
     contentLength,
@@ -47,12 +47,13 @@ async function writeAsset(
     await fileLogger({
       errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
       file: manifest.name,
+      error,
     });
   }
 
   const file = fs.createWriteStream(outputPath);
 
-  const ntIterateChunks = asyncNoThrow(
+  const ntIterateChunks = asyncNoThrow<NodeJS.ErrnoException>(
     iterateChunks,
     new Error(AssetErrorCodes.FETCH_W_STREAM_ERROR),
   );
@@ -73,7 +74,7 @@ async function writeAsset(
   progress?.stop();
   return [
     err?.code
-      ? ((err as Error) ?? null)
+      ? (err ?? null)
       : new Error(AssetErrorCodes.FETCH_W_STREAM_ERROR, { cause: err }),
   ];
 }

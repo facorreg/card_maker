@@ -10,7 +10,7 @@ import Unzip from "./unzip.js";
 const onUncompress: OnUncompress = async ({ entry, outputPath, err }) => {
   const logCode =
     err !== null
-      ? { errCode: AssetErrorCodes.UNZIP_FILE_ERROR }
+      ? { errCode: AssetErrorCodes.UNZIP_FILE_ERROR, error: err }
       : { code: STEPS.UNCOMPRESS_INNER_FILE };
 
   await fileLogger({
@@ -38,6 +38,7 @@ export default async function unzip(
     await fileLogger({
       errCode: AssetErrorCodes.UNZIP_UNCOMPRESSED_SIZE_ERROR,
       file: inputFileName,
+      error: errGDS,
     });
   } else {
     const [errPbCreate, progress] = multiBar.create(
@@ -53,6 +54,7 @@ export default async function unzip(
       await fileLogger({
         errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
         file: inputFileName,
+        error: errPbCreate,
       });
     }
   }

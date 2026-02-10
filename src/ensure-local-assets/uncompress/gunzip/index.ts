@@ -44,6 +44,7 @@ export default async function gunzip(
     await fileLogger({
       errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
       file: inputFileName,
+      error: errPb,
     });
   }
 

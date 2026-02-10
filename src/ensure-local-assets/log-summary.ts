@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import chalk from "chalk";
 import log from "../utils/logger/console.js";
+import fileLogger from "../utils/logger/file.js";
 import type { AsyncNoThrow } from "../utils/no-throw.js";
 import { LOG_OUTPUT } from "./constants.js";
 import { type AssetErrorCodes, STEPS } from "./types.js";
@@ -43,8 +44,8 @@ async function readByDelimiter(
     if (buffer.length) cb(buffer);
 
     return [null];
-  } catch {
-    return [new Error(ReadByDelimiterErrors.RBD_R_ERROR)];
+  } catch (err) {
+    return [new Error(ReadByDelimiterErrors.RBD_R_ERROR, { cause: err })];
   }
 }
 
@@ -95,7 +96,7 @@ async function logSummary() {
     }
   };
 
-  const [_] = await readByDelimiter("\n", readLogsCallback);
+  const [err] = await readByDelimiter("\n", readLogsCallback);
   const green = chalk.bold.green;
   const red = chalk.bold.red;
 
@@ -105,7 +106,13 @@ async function logSummary() {
   log.info(
     `Extractions => completed: ${green(uncompressSuccesses)} | failed: ${red(uncompressErrors)}`,
   );
-  // if (err) await fileLogger({ errCode: err.message, file: "none" });
+
+  if (err)
+    await fileLogger({
+      errCode: err.message,
+      file: "none",
+      error: (err.cause as Error) ?? err,
+    });
 }
 
 export default logSummary;

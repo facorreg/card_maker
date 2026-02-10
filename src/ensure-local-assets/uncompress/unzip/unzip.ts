@@ -112,7 +112,7 @@ export default class Unzip {
           path.join(this.outputPath, entry.fileName),
         );
 
-        const done = async (e?: NodeJS.ErrnoException) => {
+        const done = async (e?: Error) => {
           ws.removeAllListeners();
           readStream.removeAllListeners();
 

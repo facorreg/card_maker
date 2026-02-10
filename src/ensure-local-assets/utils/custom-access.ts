@@ -6,8 +6,11 @@ import { AssetErrorCodes, STEPS } from "../types.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
-async function customAccess(url: string, c: AccessMode): AsyncNoThrow<void> {
-  const ntAccess = asyncNoThrow(access);
+async function customAccess(
+  url: string,
+  c: AccessMode,
+): AsyncNoThrow<void, Error | NodeJS.ErrnoException> {
+  const ntAccess = asyncNoThrow<NodeJS.ErrnoException>(access);
   const [err] = await ntAccess(url, c);
 
   if (err === null) return [null];
@@ -23,12 +26,12 @@ async function customAccess(url: string, c: AccessMode): AsyncNoThrow<void> {
 export default async function customAccessHandler(
   path: string,
   type: DataTypes,
-): AsyncNoThrow<STEPS, Error> {
+): AsyncNoThrow<STEPS> {
   const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
   const [err] = await customAccess(path, accessFlag);
 
   if (err !== null) {
-    if (err.code !== AssetErrorCodes.FILE_STATE_MISSING) return [err];
+    if (err.message !== AssetErrorCodes.FILE_STATE_MISSING) return [err];
 
     return type === "xml" || type === "folder"
       ? [null, STEPS.CHECK_COMPRESSED_ARCHIVE]

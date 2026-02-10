@@ -35,8 +35,9 @@ async function runSteps(manifest: Manifest, multiBar: MultiBar) {
         index--;
       }
       await fileLogger({
-        errCode: err?.code,
+        errCode: err.message,
         file: manifest.name,
+        error: err,
       });
     }
 

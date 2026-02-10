@@ -16,8 +16,9 @@ const errorReporter = {
 
 interface DataFormatterOpts {
   code?: STEPS;
-  errCode?: AssetErrorCodes;
+  errCode?: AssetErrorCodes | string;
   file: string;
+  error?: Error;
 }
 function dataFormatter(opts: DataFormatterOpts) {
   const input = JSON.stringify({
