@@ -5,39 +5,56 @@ import type { TransformCallback } from "node:stream";
 import { Transform } from "node:stream";
 import type { Entry, ZipFile } from "yauzl";
 import yauzl from "yauzl";
+import getSubpath from "../../../utils/get-subpath.js";
 import type { AsyncNoThrow, NoThrow } from "../../../utils/no-throw.js";
+import asyncNoThrow from "../../../utils/no-throw.js";
+import { AssetError, AssetErrorCodes } from "../../types.js";
 
 interface IterateEntriesCbOptions {
   entry: Entry;
   zipfile: ZipFile;
 }
 
+interface OnUncompressOpts {
+  err: NodeJS.ErrnoException | null;
+  entry: Entry;
+  outputPath: string;
+}
+export type OnUncompress =
+  | ((opts: OnUncompressOpts) => Promise<void>)
+  | undefined;
 interface UnzipOptions {
-  extractPath: string;
+  outputPath: string;
   zipPath: string;
+  onUncompress?: OnUncompress;
 }
 
 type IterateEntriesCb = (
   opts: IterateEntriesCbOptions,
-) => AsyncNoThrow<string> | NoThrow<undefined>;
+) => AsyncNoThrow<undefined> | NoThrow<undefined>;
 
 export default class Unzip {
   onTransform?: ((chunk: Buffer, entry: Entry) => undefined) | null;
   onError?: (() => undefined) | null;
   onSuccess?: (() => undefined) | null;
-  extractPath!: string;
+  onUncompress?: OnUncompress;
+  outputPath!: string;
   zipPath: string;
   uncompressedSize: number = 0;
 
-  constructor({ extractPath, zipPath }: UnzipOptions) {
-    this.extractPath = extractPath ?? "";
+  constructor({ outputPath, zipPath, onUncompress }: UnzipOptions) {
+    this.outputPath = outputPath ?? "";
     this.zipPath = zipPath;
+    this.onUncompress = onUncompress;
   }
 
-  iterateEntries(callback: IterateEntriesCb): AsyncNoThrow<string> {
+  iterateEntries(
+    callback: IterateEntriesCb,
+  ): AsyncNoThrow<undefined, AssetError> {
     return new Promise((resolve) => {
       yauzl.open(this.zipPath, { lazyEntries: true }, (err, zipfile) => {
-        if (err) return resolve([err]);
+        if (err)
+          return resolve([new AssetError(AssetErrorCodes.UNZIP_OPEN_ERROR)]);
         zipfile.readEntry();
         zipfile.on("entry", async (entry) => {
           const isFolder = /\/$/.test(entry.fileName);
@@ -45,59 +62,64 @@ export default class Unzip {
           if (!isFolder) {
             // Directory file names end with '/'.
             const promise = callback({ entry, zipfile });
-            const [_] = promise instanceof Promise ? await promise : promise;
+            const [e] = promise instanceof Promise ? await promise : promise;
 
-            // replace with an on error ft
+            this?.onUncompress?.({
+              entry,
+              outputPath: this.outputPath,
+              err: e,
+            });
           }
 
           zipfile.readEntry();
         });
         zipfile.on("error", () => {
-          // todo: better error handling
           this?.onError?.();
-          return resolve([new Error("error occurred")]);
+          return resolve([new AssetError(AssetErrorCodes.UNZIP_ERROR)]);
         });
         zipfile.on("end", () => {
           this?.onSuccess?.();
-          return resolve([null, "finish"]);
+          return resolve([null]);
         });
       });
     });
   }
 
-  async mkdir(fileName: string) {
-    const regexp = RegExp(/.*(\/)/g);
+  async mkdir(filePath: string): AsyncNoThrow<undefined> {
+    const zipFolderSubpath = getSubpath(filePath);
+    const folderPath = path.join(this.outputPath, zipFolderSubpath);
 
-    const [zipFolderSubpath = ""] = regexp.exec(fileName) || [];
-    const folderPath = path.join(this.extractPath, zipFolderSubpath);
+    const ntMkdir = asyncNoThrow(
+      mkdir,
+      new AssetError(AssetErrorCodes.MKDIR_ERROR),
+    );
 
-    try {
-      await mkdir(folderPath, { recursive: true });
-    } catch (e) {
-      return [e as NodeJS.ErrnoException];
-    }
+    const [err] = await ntMkdir(folderPath, { recursive: true });
 
-    return [null, "unzipped"];
+    return [err];
   }
 
   async uncompressEntryCallback({
     entry,
     zipfile,
-  }: IterateEntriesCbOptions): AsyncNoThrow<string> {
+  }: IterateEntriesCbOptions): AsyncNoThrow<undefined> {
     return new Promise((resolve) => {
       zipfile.openReadStream(entry, async (err, readStream) => {
-        if (err) resolve([err]);
+        if (err) {
+          resolve([err]);
+        }
 
         await this.mkdir(entry.fileName);
 
         const ws = fs.createWriteStream(
-          path.join(this.extractPath, entry.fileName),
+          path.join(this.outputPath, entry.fileName),
         );
 
-        const done = (e?: NodeJS.ErrnoException) => {
+        const done = async (e?: NodeJS.ErrnoException) => {
           ws.removeAllListeners();
           readStream.removeAllListeners();
-          resolve(e ? [e] : [null, "decompressed"]);
+
+          resolve([e ?? null]);
         };
 
         ws.once("finish", done);
@@ -124,7 +146,7 @@ export default class Unzip {
     return this.iterateEntries((opts) => this.uncompressEntryCallback(opts));
   }
 
-  getEntryUncompressedSize({
+  getUncompressedSizeCallback({
     entry,
   }: IterateEntriesCbOptions): NoThrow<undefined> {
     this.uncompressedSize += entry.uncompressedSize;
@@ -134,7 +156,7 @@ export default class Unzip {
   async getUncompressedSize(): AsyncNoThrow<number> {
     if (!this.uncompressedSize) {
       const [err] = await this.iterateEntries((opts) =>
-        this.getEntryUncompressedSize(opts),
+        this.getUncompressedSizeCallback(opts),
       );
       if (err !== null) return [err];
     }

@@ -1,16 +1,15 @@
 import { access, constants } from "node:fs/promises";
 import type { AsyncNoThrow } from "../../utils/no-throw.js";
 import asyncNoThrow from "../../utils/no-throw.js";
-import type { DataTypes } from "../constants.js";
-import { STEPS } from "../constants.js";
-import { AssetError, AssetErrorCodes } from "../errors.js";
+import type { DataTypes } from "../types.js";
+import { AssetError, AssetErrorCodes, STEPS } from "../types.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
 async function customAccess(
   url: string,
   c: AccessMode,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<undefined, AssetError> {
   const ntAccess = asyncNoThrow(access);
   const [err] = await ntAccess(url, c);
 
@@ -27,7 +26,7 @@ async function customAccess(
 export default async function customAccessHandler(
   path: string,
   type: DataTypes,
-): AsyncNoThrow<STEPS> {
+): AsyncNoThrow<STEPS, AssetError> {
   const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
   const [err] = await customAccess(path, accessFlag);
 

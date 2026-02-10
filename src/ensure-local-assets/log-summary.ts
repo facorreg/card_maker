@@ -1,0 +1,109 @@
+// downloaded X, failed Y | extracted X, failed Y
+
+import fs from "node:fs";
+import { StringDecoder } from "node:string_decoder";
+import chalk from "chalk";
+import log from "../utils/logger/console.js";
+import type { AsyncNoThrow } from "../utils/no-throw.js";
+import { LOG_OUTPUT } from "./constants.js";
+import { type AssetErrorCodes, STEPS } from "./types.js";
+
+enum ReadByDelimiterErrors {
+  RBD_NO_DELIMITER_PROVIDED = "RBD_NO_DELIMITER_PROVIDED",
+  RBD_R_ERROR = "RBD_R_ERROR",
+}
+
+async function readByDelimiter(
+  delimiter: string,
+  cb: (match: string) => void,
+): AsyncNoThrow<undefined> {
+  if (!delimiter) {
+    return [new Error(ReadByDelimiterErrors.RBD_NO_DELIMITER_PROVIDED)];
+  }
+
+  const stream = fs.createReadStream(LOG_OUTPUT);
+  const decoder = new StringDecoder("utf-8");
+
+  let buffer = "";
+
+  try {
+    for await (const chunk of stream) {
+      buffer += decoder.write(chunk);
+
+      let idx = -1;
+      // biome-ignore lint/suspicious/noAssignInExpressions: <more readable>
+      while ((idx = buffer.indexOf(delimiter)) !== -1) {
+        const match = buffer.slice(0, idx + delimiter.length);
+        cb(match);
+        buffer = buffer.slice(idx + delimiter.length);
+      }
+    }
+
+    buffer += decoder.end(); // flush decoder
+    return [null];
+  } catch {
+    return [new Error(ReadByDelimiterErrors.RBD_R_ERROR)];
+  }
+}
+
+async function logSummary() {
+  let downloadSuccesses = 0;
+  let downloadErrors = 0;
+  let uncompressSuccesses = 0;
+  let uncompressErrors = 0;
+
+  const extractMainError = (errCode?: AssetErrorCodes) => {
+    if (!errCode) return;
+
+    const [mainError] = errCode.split("_");
+
+    switch (mainError) {
+      case "HTTP":
+        return "FETCH";
+      case "GZIP":
+        return "UNZIP";
+      default:
+        return mainError;
+    }
+  };
+
+  const readLogsCallback = (logStr: string) => {
+    const log = JSON.parse(logStr);
+    const errCode = extractMainError(log.errCode as AssetErrorCodes);
+    const anyCode = (log.code as STEPS) ?? errCode;
+
+    switch (anyCode as STEPS | string) {
+      case STEPS.DOWNLOAD:
+        downloadSuccesses += 1;
+        break;
+      case STEPS.UNCOMPRESS:
+        uncompressSuccesses += 1;
+        break;
+      case STEPS.UNCOMPRESS_INNER_FILE:
+        uncompressSuccesses += 1;
+        break;
+      case "FETCH":
+        downloadErrors += 1;
+        break;
+      case "UNZIP":
+        uncompressErrors += 1;
+        break;
+      default:
+        break;
+    }
+  };
+
+  const [_] = await readByDelimiter("\n", readLogsCallback);
+  const green = chalk.bold.green;
+  const red = chalk.bold.red;
+
+  log.info(
+    `Downloads => completed: ${green(downloadSuccesses)} | failed: ${red(downloadErrors)}`,
+  );
+  log.info(
+    `Extractions => completed ${green(uncompressSuccesses)} | failed: ${red(uncompressErrors)}`,
+  );
+  // if (err) await fileLogger({ errCode: err.message, file: "none" });
+}
+
+export default logSummary;

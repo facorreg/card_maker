@@ -1,9 +1,28 @@
+import "dotenv/config";
+import { LOG_OUTPUT } from "./ensure-local-assets/constants.js";
 import ensureLocalAssets from "./ensure-local-assets/index.js";
+import log from "./utils/logger/console.js";
+import safeDeletion from "./utils/safe-deletion.js";
+
+/*
+@TODO
+- remove asset errors
+- use void instead of undefined wherever it'd be a best fit
+- try to make utility functions and classes the least project dependant,
+  so they could be reusable if need be.
+
+- Actual parsing
+  - kanjidic first
+  - jmdic
+
+- Anki deck card creation
+*/
 
 (async () => {
   try {
+    await safeDeletion(LOG_OUTPUT, false);
     await ensureLocalAssets();
-  } catch (e) {
-    console.log(`Uncaught error: ${e}`);
+  } catch {
+    log.error("Uncaught error");
   }
 })();

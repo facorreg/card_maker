@@ -2,8 +2,10 @@ import fs from "node:fs";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
+import fileLogger from "../../../utils/logger/file.js";
 import type { AsyncNoThrow } from "../../../utils/no-throw.js";
-import type { MultiBar } from "../../progress/index.js";
+import type { MultiBar } from "../../progress.js";
+import { AssetError, AssetErrorCodes } from "../../types.js";
 
 async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
   const fh = await fs.promises.open(path, "r");
@@ -25,9 +27,10 @@ export default async function gunzip(
   inputPath: string,
   inputFileName: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<undefined, AssetError> {
   const [errGzSize, uncompressedSize] = await gzipUncompressedSize(inputPath);
-  if (errGzSize !== null) return [errGzSize]; // invalid gzip format
+  if (errGzSize !== null)
+    return [new AssetError(AssetErrorCodes.GZIP_INVALID_FORMAT)]; // invalid gzip format
 
   const [errPb, pb] = multiBar.create(
     inputFileName,
@@ -36,6 +39,10 @@ export default async function gunzip(
   );
   /* handle Log */
   if (errPb) {
+    await fileLogger({
+      errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
+      file: inputFileName,
+    });
   }
 
   let uncompressed = 0;
@@ -57,9 +64,9 @@ export default async function gunzip(
     );
 
     pb?.success();
-  } catch (err) {
+  } catch {
     pb?.error();
-    return [err as NodeJS.ErrnoException];
+    return [new AssetError(AssetErrorCodes.GZIP_ERROR)];
   } finally {
     pb?.stop();
   }

@@ -1,21 +1,9 @@
-export type DecompressedTypes = "xml" | "folder";
-export type CompressionTypes = "zip" | "gz";
-export type DataTypes = DecompressedTypes | CompressionTypes;
+import path from "node:path";
+import getSubpath from "../utils/get-subpath.js";
 
-export interface Manifest {
-  lang: string;
-  name: string;
-  url: string;
-  inputType: CompressionTypes;
-  outputType: DecompressedTypes;
-}
+export const LOG_OUTPUT = path.join(
+  process.cwd(),
+  process.env.LOGS_PATH || "logs/log_statuses.txt",
+);
 
-export enum STEPS {
-  NOT_STARTED = "NOT_STARTED",
-  DOWNLOAD = "DOWNLOAD",
-  CHECK_COMPRESSED_ARCHIVE = "CHECK_COMPRESSED_ARCHIVE",
-  UNCOMPRESS = "UNCOMPRESS",
-  PARSE_FILE = "PARSE_FILE",
-  NO_ACTION = "NO_ACTION",
-  CLEANUP = "CLEANUP",
-}
+export const LOG_FOLDER_PATH = getSubpath(LOG_OUTPUT);

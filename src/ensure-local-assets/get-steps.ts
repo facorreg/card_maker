@@ -1,24 +1,20 @@
 import { mkdir } from "node:fs/promises";
 import type { AsyncNoThrow } from "../utils/no-throw.js";
 import asyncNoThrow from "../utils/no-throw.js";
-import type { DeletionReturn } from "../utils/safe-deletion.js";
 import safeDeletion from "../utils/safe-deletion.js";
-import type { Manifest } from "./constants.js";
-import { STEPS } from "./constants.js";
-import fetchAsset from "./fetch-asset.ts/index.js";
-import type { MultiBar } from "./progress/index.js";
+import fetchAsset from "./fetch-asset.js";
+import type { MultiBar } from "./progress.js";
+import { AssetError, AssetErrorCodes, type Manifest, STEPS } from "./types.js";
 import gunzip from "./uncompress/gunzip/index.js";
 import unzip from "./uncompress/unzip/index.js";
 import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
 import customAccess from "./utils/custom-access.js";
 export interface Step {
   name: STEPS;
-  run: () => AsyncNoThrow<string | STEPS | undefined> | DeletionReturn;
-  cleanup?: () => DeletionReturn;
+  run: () => AsyncNoThrow<STEPS | undefined, AssetError>;
+  cleanup?: () => AsyncNoThrow<undefined, AssetError>;
   next?: STEPS;
 }
-
-// const errorReporter = {};
 
 export default function getSteps(
   manifest: Manifest,
@@ -26,6 +22,7 @@ export default function getSteps(
 ): Step[] {
   const outputPath = buildPath(manifest.name, manifest.outputType);
   const inputPath = buildPath(manifest.name, manifest.inputType);
+  const dictionariesDirPath = getDictionariesDirPath();
   const isFolder = manifest.outputType === "folder";
 
   return [
@@ -33,10 +30,10 @@ export default function getSteps(
       name: STEPS.NOT_STARTED,
       async run() {
         const ntMkdir = asyncNoThrow(mkdir);
-        const [err] = await ntMkdir(getDictionariesDirPath(), {
+        const [mkErr] = await ntMkdir(dictionariesDirPath, {
           recursive: true,
         });
-        if (err) return [err];
+        if (mkErr) return [new AssetError(AssetErrorCodes.MKDIR_ERROR)];
         return customAccess(outputPath, manifest.outputType);
       },
     },
@@ -59,14 +56,10 @@ export default function getSteps(
     {
       name: STEPS.UNCOMPRESS,
       async run() {
-        // reporter.decompressStart();
-
         const inputFileName = `${manifest.name}.${manifest.inputType}`;
         const uncompress = manifest.inputType === "gz" ? gunzip : unzip;
 
         return uncompress(outputPath, inputPath, inputFileName, multiBar);
-
-        // reporter.decompressEnd();
       },
       async cleanup() {
         return safeDeletion(outputPath, isFolder);

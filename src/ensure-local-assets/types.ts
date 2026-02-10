@@ -1,0 +1,75 @@
+export type DecompressedTypes = "xml" | "folder";
+export type CompressionTypes = "zip" | "gz";
+export type DataTypes = DecompressedTypes | CompressionTypes;
+
+export interface Manifest {
+  lang: string;
+  name: string;
+  url: string;
+  inputType: CompressionTypes;
+  outputType: DecompressedTypes;
+}
+
+export enum STEPS {
+  NOT_STARTED = "NOT_STARTED",
+  DOWNLOAD = "DOWNLOAD",
+  CHECK_COMPRESSED_ARCHIVE = "CHECK_COMPRESSED_ARCHIVE",
+  UNCOMPRESS = "UNCOMPRESS",
+  UNCOMPRESS_INNER_FILE = "UNCOMPRESS_INNER_FILE", // only called within uncompress/gunzip
+  PARSE_FILE = "PARSE_FILE",
+  NO_ACTION = "NO_ACTION",
+  CLEANUP = "CLEANUP",
+}
+
+export enum AssetErrorCodes {
+  FILE_STATE_MISSING = "FILE_STATE_MISSING",
+  FILE_STATE_UNREACHABLE = "FILE_STATE_UNREACHABLE",
+
+  FETCH_ERROR = "FETCH_ERROR",
+  HTTP_INVALID_STATUS = "HTTP_INVALID_STATUS",
+  HTTP_MISSING_BODY = "HTTP_MISSING_BODY",
+  FETCH_W_STREAM_ERROR = "FETCH_W_STREAM_ERROR",
+
+  NO_ERRCODE_SPECIFIED = "NO_ERRCODE_SPECIFIED",
+
+  MKDIR_ERROR = "MKDIR_ERROR",
+  FILE_WRITING_ERROR = "FILE_WRITING_ERROR",
+
+  UNZIP_ERROR = "UNZIP_ERROR",
+  UNZIP_UNCOMPRESSED_SIZE_ERROR = "UNZIP_UNCOMPRESSED_SIZE_ERROR",
+  UNZIP_OPEN_ERROR = "UNZIP_OPEN_ERROR",
+  UNZIP_FILE_ERROR = "UNZIP_FILE_ERROR",
+
+  GZIP_INVALID_FORMAT = "GZIP_INVALID_FORMAT",
+  GZIP_ERROR = "GZIP_ERROR",
+
+  SINGLEBAR_CREATE_ERROR = "SINGLEBAR_CREATE_ERROR",
+
+  DELETION_FILE_NOT_FOUND = "DELETION_FILE_NOT_FOUND",
+  DELETION_FAILED = "DELETION_FAILED",
+
+  LOG_R_STREAM_ERROR = "LOG_R_STREAM_ERROR",
+}
+
+interface AssetErrorOptions {
+  // code?: AssetErrorCodes;
+  message?: string;
+  cause?: NodeJS.ErrnoException;
+}
+
+export class AssetError extends Error {
+  code!: AssetErrorCodes;
+  // Set the error name to your custom error class name
+
+  constructor(code: AssetErrorCodes, options?: AssetErrorOptions) {
+    super(options?.message, { cause: options?.cause });
+    this.code = code;
+  }
+}
+
+export type AssetState = STEPS | AssetErrorCodes;
+
+export interface StepReturn {
+  state: AssetState;
+  cause?: NodeJS.ErrnoException;
+}

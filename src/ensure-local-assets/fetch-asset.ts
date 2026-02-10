@@ -1,23 +1,19 @@
 import { once } from "node:events";
 import fs from "node:fs";
-import type { AsyncNoThrow } from "../../utils/no-throw.js";
-import asyncNoThrow from "../../utils/no-throw.js";
-import type { Manifest } from "../constants.js";
-import { AssetError, AssetErrorCodes } from "../errors.js";
-import type { MultiBar, SingleBar } from "../progress/index.js";
-
-const errorReporter = {
-  fetchError: new AssetError(AssetErrorCodes.FETCH_ERROR),
-  invalidStatus: new AssetError(AssetErrorCodes.HTTP_INVALID_STATUS),
-  noBody: new AssetError(AssetErrorCodes.HTTP_MISSING_BODY),
-};
+import fileLogger from "../utils/logger/file.js";
+import type { AsyncNoThrow } from "../utils/no-throw.js";
+import asyncNoThrow from "../utils/no-throw.js";
+import type { MultiBar, SingleBar } from "./progress.js";
+import type { Manifest } from "./types.js";
+import { AssetError, AssetErrorCodes } from "./types.js";
 
 async function iterateChunks(
   res: Response,
   file: fs.WriteStream,
   progress?: SingleBar,
-) {
-  if (res.body === null) return Promise.reject(errorReporter.noBody);
+): AsyncNoThrow<undefined> {
+  if (res.body === null)
+    return [new AssetError(AssetErrorCodes.HTTP_MISSING_BODY)];
 
   let downloaded = 0;
 
@@ -29,6 +25,7 @@ async function iterateChunks(
       await once(file, "drain");
     }
   }
+  return [null];
 }
 
 async function writeAsset(
@@ -36,10 +33,9 @@ async function writeAsset(
   manifest: Manifest,
   filePath: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<undefined, AssetError> {
   const contentLength = Number(res.headers.get("content-length") ?? 0);
   const fileName = `${manifest.name}.${manifest.inputType}`;
-  const file = fs.createWriteStream(filePath);
 
   const [error, progress] = await multiBar.create(
     fileName,
@@ -48,8 +44,13 @@ async function writeAsset(
   );
 
   if (error) {
-    /* @TODO error */
+    await fileLogger({
+      errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
+      file: manifest.name,
+    });
   }
+
+  const file = fs.createWriteStream(filePath);
 
   const ntIterateChunks = asyncNoThrow(
     iterateChunks,
@@ -69,23 +70,30 @@ async function writeAsset(
   }
 
   progress?.stop();
-  return [err ?? null];
+  return [
+    err?.code
+      ? ((err as AssetError) ?? null)
+      : new AssetError(AssetErrorCodes.FETCH_W_STREAM_ERROR),
+  ];
 }
 
 export default async function fetchAsset(
   manifest: Manifest,
   filePath: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined> {
-  const ntFetch = asyncNoThrow(fetch, errorReporter.fetchError);
+): AsyncNoThrow<undefined, AssetError> {
+  const ntFetch = asyncNoThrow(
+    fetch,
+    new AssetError(AssetErrorCodes.FETCH_ERROR),
+  );
 
   const [fetchError, res] = await ntFetch(manifest.url, {
     signal: AbortSignal.timeout(60_000),
   });
 
   if (fetchError !== null || !res)
-    return [fetchError ?? errorReporter.fetchError];
-  if (!res.ok) return [errorReporter.invalidStatus];
+    return [new AssetError(AssetErrorCodes.FETCH_ERROR)];
+  if (!res.ok) return [new AssetError(AssetErrorCodes.HTTP_INVALID_STATUS)];
 
   return writeAsset(res, manifest, filePath, multiBar);
 }

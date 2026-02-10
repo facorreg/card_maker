@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { DataTypes } from "../constants.js";
+import type { DataTypes } from "../types.js";
 
 export function getDictionariesDirPath(): string {
   return path.join(process.cwd(), "dictionaries");
