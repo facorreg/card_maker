@@ -12,7 +12,7 @@ async function iterateChunks(
   res: Response,
   file: fs.WriteStream,
   progress?: SingleBar,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   if (res.body === null) return [new Error(AssetErrorCodes.HTTP_MISSING_BODY)];
 
   let downloaded = 0;
@@ -33,7 +33,7 @@ async function writeAsset(
   manifest: Manifest,
   outputPath: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   const contentLength = Number(res.headers.get("content-length") ?? 0);
   const fileName = `${manifest.name}.${manifest.inputType}`;
 
@@ -82,7 +82,7 @@ export default async function fetchAsset(
   manifest: Manifest,
   outputPath: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   const ntFetch = asyncNoThrow(fetch, new Error(AssetErrorCodes.FETCH_ERROR));
 
   const [fetchError, res] = await ntFetch(manifest.url, {

@@ -81,23 +81,23 @@ export class SingleBar {
     this.contentLength = contentLength;
   }
 
-  update(downloaded: number, obj?: object): undefined {
+  update(downloaded: number, obj?: object): void {
     this.pb?.update(percentage(downloaded, this.contentLength), obj);
   }
 
-  success(): undefined {
+  success(): void {
     this.pb?.update({
       status: chalk.bold.green(getStatusState(this.state, "success")),
     });
   }
 
-  error(): undefined {
+  error(): void {
     this.pb?.update({
       status: chalk.bold.red(getStatusState(this.state, "error")),
     });
   }
 
-  stop(): undefined {
+  stop(): void {
     this.pb?.stop();
   }
 }

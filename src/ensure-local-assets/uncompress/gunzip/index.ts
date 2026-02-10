@@ -27,7 +27,7 @@ export default async function gunzip(
   inputPath: string,
   inputFileName: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   const [errGzSize, uncompressedSize] = await gzipUncompressedSize(inputPath);
   if (errGzSize !== null)
     return [

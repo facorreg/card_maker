@@ -16,7 +16,7 @@ enum ReadByDelimiterErrors {
 async function readByDelimiter(
   delimiter: string,
   cb: (match: string) => void,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   if (!delimiter) {
     return [new Error(ReadByDelimiterErrors.RBD_NO_DELIMITER_PROVIDED)];
   }

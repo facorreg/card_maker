@@ -30,7 +30,7 @@ function dataFormatter(opts: DataFormatterOpts) {
 
 export default async function fileLogger(
   opts: DataFormatterOpts,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   const input = dataFormatter(opts);
 
   const ntMkdir = asyncNoThrow(mkdir, errorReporter.mkdirFailed);

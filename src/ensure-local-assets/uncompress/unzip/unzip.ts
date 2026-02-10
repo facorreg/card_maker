@@ -20,9 +20,7 @@ interface OnUncompressOpts {
   entry: Entry;
   outputPath: string;
 }
-export type OnUncompress =
-  | ((opts: OnUncompressOpts) => Promise<void>)
-  | undefined;
+export type OnUncompress = ((opts: OnUncompressOpts) => Promise<void>) | void;
 interface UnzipOptions {
   outputPath: string;
   zipPath: string;
@@ -31,12 +29,12 @@ interface UnzipOptions {
 
 type IterateEntriesCb = (
   opts: IterateEntriesCbOptions,
-) => AsyncNoThrow<undefined> | NoThrow<undefined>;
+) => AsyncNoThrow<void> | NoThrow<void>;
 
 export default class Unzip {
-  onTransform?: ((chunk: Buffer, entry: Entry) => undefined) | null;
-  onError?: (() => undefined) | null;
-  onSuccess?: (() => undefined) | null;
+  onTransform?: ((chunk: Buffer, entry: Entry) => void) | null;
+  onError?: (() => void) | null;
+  onSuccess?: (() => void) | null;
   onUncompress?: OnUncompress;
   outputPath!: string;
   zipPath: string;
@@ -48,7 +46,7 @@ export default class Unzip {
     this.onUncompress = onUncompress;
   }
 
-  iterateEntries(callback: IterateEntriesCb): AsyncNoThrow<undefined> {
+  iterateEntries(callback: IterateEntriesCb): AsyncNoThrow<void> {
     return new Promise((resolve) => {
       yauzl.open(this.zipPath, { lazyEntries: true }, (err, zipfile) => {
         if (err)
@@ -87,7 +85,7 @@ export default class Unzip {
     });
   }
 
-  async mkdir(filePath: string): AsyncNoThrow<undefined> {
+  async mkdir(filePath: string): AsyncNoThrow<void> {
     const zipFolderSubpath = getSubpath(filePath);
     const folderPath = path.join(this.outputPath, zipFolderSubpath);
 
@@ -101,7 +99,7 @@ export default class Unzip {
   async uncompressEntryCallback({
     entry,
     zipfile,
-  }: IterateEntriesCbOptions): AsyncNoThrow<undefined> {
+  }: IterateEntriesCbOptions): AsyncNoThrow<void> {
     return new Promise((resolve) => {
       zipfile.openReadStream(entry, async (err, readStream) => {
         if (err) {
@@ -147,7 +145,7 @@ export default class Unzip {
 
   getUncompressedSizeCallback({
     entry,
-  }: IterateEntriesCbOptions): NoThrow<undefined> {
+  }: IterateEntriesCbOptions): NoThrow<void> {
     this.uncompressedSize += entry.uncompressedSize;
     return [null];
   }

@@ -24,7 +24,7 @@ export default async function unzip(
   inputPath: string,
   inputFileName: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   const unzip = new Unzip({
     outputPath,
     zipPath: inputPath,

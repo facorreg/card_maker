@@ -11,8 +11,8 @@ import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
 import customAccess from "./utils/custom-access.js";
 export interface Step {
   name: STEPS;
-  run: () => AsyncNoThrow<STEPS | undefined>;
-  cleanup?: () => AsyncNoThrow<undefined>;
+  run: () => AsyncNoThrow<STEPS> | AsyncNoThrow<void>;
+  cleanup?: () => AsyncNoThrow<void>;
   next?: STEPS;
 }
 

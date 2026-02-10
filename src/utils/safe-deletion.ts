@@ -6,7 +6,7 @@ import asyncNoThrow from "./no-throw.js";
 export default async function safeDeletion(
   path: string,
   isDir: boolean,
-): AsyncNoThrow<undefined> {
+): AsyncNoThrow<void> {
   const ntRm = asyncNoThrow(rm);
   const ntUnlink = asyncNoThrow(unlink);
 

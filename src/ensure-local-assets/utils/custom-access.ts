@@ -6,10 +6,7 @@ import { AssetErrorCodes, STEPS } from "../types.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
-async function customAccess(
-  url: string,
-  c: AccessMode,
-): AsyncNoThrow<undefined> {
+async function customAccess(url: string, c: AccessMode): AsyncNoThrow<void> {
   const ntAccess = asyncNoThrow(access);
   const [err] = await ntAccess(url, c);
 
