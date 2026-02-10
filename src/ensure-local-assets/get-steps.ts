@@ -4,15 +4,15 @@ import asyncNoThrow from "../utils/no-throw.js";
 import safeDeletion from "../utils/safe-deletion.js";
 import fetchAsset from "./fetch-asset.js";
 import type { MultiBar } from "./progress.js";
-import { AssetError, AssetErrorCodes, type Manifest, STEPS } from "./types.js";
+import { AssetErrorCodes, type Manifest, STEPS } from "./types.js";
 import gunzip from "./uncompress/gunzip/index.js";
 import unzip from "./uncompress/unzip/index.js";
 import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
 import customAccess from "./utils/custom-access.js";
 export interface Step {
   name: STEPS;
-  run: () => AsyncNoThrow<STEPS | undefined, AssetError>;
-  cleanup?: () => AsyncNoThrow<undefined, AssetError>;
+  run: () => AsyncNoThrow<STEPS | undefined>;
+  cleanup?: () => AsyncNoThrow<undefined>;
   next?: STEPS;
 }
 
@@ -33,7 +33,8 @@ export default function getSteps(
         const [mkErr] = await ntMkdir(dictionariesDirPath, {
           recursive: true,
         });
-        if (mkErr) return [new AssetError(AssetErrorCodes.MKDIR_ERROR)];
+        if (mkErr)
+          return [new Error(AssetErrorCodes.MKDIR_ERROR, { cause: mkErr })];
         return customAccess(outputPath, manifest.outputType);
       },
     },

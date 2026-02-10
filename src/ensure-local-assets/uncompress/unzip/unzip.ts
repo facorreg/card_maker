@@ -8,7 +8,7 @@ import yauzl from "yauzl";
 import getSubpath from "../../../utils/get-subpath.js";
 import type { AsyncNoThrow, NoThrow } from "../../../utils/no-throw.js";
 import asyncNoThrow from "../../../utils/no-throw.js";
-import { AssetError, AssetErrorCodes } from "../../types.js";
+import { AssetErrorCodes } from "../../types.js";
 
 interface IterateEntriesCbOptions {
   entry: Entry;
@@ -16,7 +16,7 @@ interface IterateEntriesCbOptions {
 }
 
 interface OnUncompressOpts {
-  err: AssetError | NodeJS.ErrnoException | null;
+  err: Error | null;
   entry: Entry;
   outputPath: string;
 }
@@ -48,13 +48,13 @@ export default class Unzip {
     this.onUncompress = onUncompress;
   }
 
-  iterateEntries(
-    callback: IterateEntriesCb,
-  ): AsyncNoThrow<undefined, AssetError> {
+  iterateEntries(callback: IterateEntriesCb): AsyncNoThrow<undefined> {
     return new Promise((resolve) => {
       yauzl.open(this.zipPath, { lazyEntries: true }, (err, zipfile) => {
         if (err)
-          return resolve([new AssetError(AssetErrorCodes.UNZIP_OPEN_ERROR)]);
+          return resolve([
+            new Error(AssetErrorCodes.UNZIP_OPEN_ERROR, { cause: err }),
+          ]);
         zipfile.readEntry();
         zipfile.on("entry", async (entry) => {
           const isFolder = /\/$/.test(entry.fileName);
@@ -73,9 +73,11 @@ export default class Unzip {
 
           zipfile.readEntry();
         });
-        zipfile.on("error", () => {
+        zipfile.on("error", (zipFileErr) => {
           this?.onError?.();
-          return resolve([new AssetError(AssetErrorCodes.UNZIP_ERROR)]);
+          return resolve([
+            new Error(AssetErrorCodes.UNZIP_ERROR, { cause: zipFileErr }),
+          ]);
         });
         zipfile.on("end", () => {
           this?.onSuccess?.();
@@ -89,10 +91,7 @@ export default class Unzip {
     const zipFolderSubpath = getSubpath(filePath);
     const folderPath = path.join(this.outputPath, zipFolderSubpath);
 
-    const ntMkdir = asyncNoThrow(
-      mkdir,
-      new AssetError(AssetErrorCodes.MKDIR_ERROR),
-    );
+    const ntMkdir = asyncNoThrow(mkdir, new Error(AssetErrorCodes.MKDIR_ERROR));
 
     const [err] = await ntMkdir(folderPath, { recursive: true });
 

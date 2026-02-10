@@ -1,12 +1,12 @@
 import { rm, unlink } from "node:fs/promises";
-import { AssetError, AssetErrorCodes } from "../ensure-local-assets/types.js";
+import { AssetErrorCodes } from "../ensure-local-assets/types.js";
 import type { AsyncNoThrow } from "./no-throw.js";
 import asyncNoThrow from "./no-throw.js";
 
 export default async function safeDeletion(
   path: string,
   isDir: boolean,
-): AsyncNoThrow<undefined, AssetError> {
+): AsyncNoThrow<undefined> {
   const ntRm = asyncNoThrow(rm);
   const ntUnlink = asyncNoThrow(unlink);
 
@@ -16,10 +16,11 @@ export default async function safeDeletion(
 
   if (err === null) return [null];
 
-  const deletionError = new AssetError(
+  const deletionError = new Error(
     err.code === "ENOENT"
       ? AssetErrorCodes.DELETION_FILE_NOT_FOUND
       : AssetErrorCodes.DELETION_FAILED,
+    { cause: err },
   );
 
   return [deletionError];

@@ -3,7 +3,7 @@ import type { Entry } from "yauzl";
 import fileLogger from "../../../utils/logger/file.js";
 import type { AsyncNoThrow } from "../../../utils/no-throw.js";
 import type { MultiBar, SingleBar } from "../../progress.js";
-import { type AssetError, AssetErrorCodes, STEPS } from "../../types.js";
+import { AssetErrorCodes, STEPS } from "../../types.js";
 import type { OnUncompress } from "./unzip.js";
 import Unzip from "./unzip.js";
 
@@ -24,7 +24,7 @@ export default async function unzip(
   inputPath: string,
   inputFileName: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined, AssetError> {
+): AsyncNoThrow<undefined> {
   const unzip = new Unzip({
     outputPath,
     zipPath: inputPath,

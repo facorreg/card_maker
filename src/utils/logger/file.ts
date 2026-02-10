@@ -4,15 +4,14 @@ import {
   LOG_OUTPUT,
 } from "../../ensure-local-assets/constants.js";
 import {
-  AssetError,
   AssetErrorCodes,
   type STEPS,
 } from "../../ensure-local-assets/types.js";
 import asyncNoThrow, { type AsyncNoThrow } from "../no-throw.js";
 
 const errorReporter = {
-  mkdirFailed: new AssetError(AssetErrorCodes.MKDIR_ERROR),
-  writingFailed: new AssetError(AssetErrorCodes.FILE_WRITING_ERROR),
+  mkdirFailed: new Error(AssetErrorCodes.MKDIR_ERROR),
+  writingFailed: new Error(AssetErrorCodes.FILE_WRITING_ERROR),
 };
 
 interface DataFormatterOpts {

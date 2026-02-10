@@ -57,16 +57,6 @@ interface AssetErrorOptions {
   cause?: NodeJS.ErrnoException;
 }
 
-export class AssetError extends Error {
-  code!: AssetErrorCodes;
-  // Set the error name to your custom error class name
-
-  constructor(code: AssetErrorCodes, options?: AssetErrorOptions) {
-    super(options?.message, { cause: options?.cause });
-    this.code = code;
-  }
-}
-
 export type AssetState = STEPS | AssetErrorCodes;
 
 export interface StepReturn {

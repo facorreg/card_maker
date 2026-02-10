@@ -6,15 +6,14 @@ import asyncNoThrow from "../utils/no-throw.js";
 import safeDeletion from "../utils/safe-deletion.js";
 import type { MultiBar, SingleBar } from "./progress.js";
 import type { Manifest } from "./types.js";
-import { AssetError, AssetErrorCodes } from "./types.js";
+import { AssetErrorCodes } from "./types.js";
 
 async function iterateChunks(
   res: Response,
   file: fs.WriteStream,
   progress?: SingleBar,
 ): AsyncNoThrow<undefined> {
-  if (res.body === null)
-    return [new AssetError(AssetErrorCodes.HTTP_MISSING_BODY)];
+  if (res.body === null) return [new Error(AssetErrorCodes.HTTP_MISSING_BODY)];
 
   let downloaded = 0;
 
@@ -34,7 +33,7 @@ async function writeAsset(
   manifest: Manifest,
   outputPath: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined, AssetError> {
+): AsyncNoThrow<undefined> {
   const contentLength = Number(res.headers.get("content-length") ?? 0);
   const fileName = `${manifest.name}.${manifest.inputType}`;
 
@@ -55,7 +54,7 @@ async function writeAsset(
 
   const ntIterateChunks = asyncNoThrow(
     iterateChunks,
-    new AssetError(AssetErrorCodes.FETCH_W_STREAM_ERROR),
+    new Error(AssetErrorCodes.FETCH_W_STREAM_ERROR),
   );
 
   const [err] = await ntIterateChunks(res, file, progress);
@@ -74,8 +73,8 @@ async function writeAsset(
   progress?.stop();
   return [
     err?.code
-      ? ((err as AssetError) ?? null)
-      : new AssetError(AssetErrorCodes.FETCH_W_STREAM_ERROR),
+      ? ((err as Error) ?? null)
+      : new Error(AssetErrorCodes.FETCH_W_STREAM_ERROR, { cause: err }),
   ];
 }
 
@@ -83,19 +82,16 @@ export default async function fetchAsset(
   manifest: Manifest,
   outputPath: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined, AssetError> {
-  const ntFetch = asyncNoThrow(
-    fetch,
-    new AssetError(AssetErrorCodes.FETCH_ERROR),
-  );
+): AsyncNoThrow<undefined> {
+  const ntFetch = asyncNoThrow(fetch, new Error(AssetErrorCodes.FETCH_ERROR));
 
   const [fetchError, res] = await ntFetch(manifest.url, {
     signal: AbortSignal.timeout(60_000),
   });
 
   if (fetchError !== null || !res)
-    return [new AssetError(AssetErrorCodes.FETCH_ERROR)];
-  if (!res.ok) return [new AssetError(AssetErrorCodes.HTTP_INVALID_STATUS)];
+    return [new Error(AssetErrorCodes.FETCH_ERROR)];
+  if (!res.ok) return [new Error(AssetErrorCodes.HTTP_INVALID_STATUS)];
 
   return writeAsset(res, manifest, outputPath, multiBar);
 }

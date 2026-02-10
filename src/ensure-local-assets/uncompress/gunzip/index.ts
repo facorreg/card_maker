@@ -5,7 +5,7 @@ import { createGunzip } from "node:zlib";
 import fileLogger from "../../../utils/logger/file.js";
 import type { AsyncNoThrow } from "../../../utils/no-throw.js";
 import type { MultiBar } from "../../progress.js";
-import { AssetError, AssetErrorCodes } from "../../types.js";
+import { AssetErrorCodes } from "../../types.js";
 
 async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
   const fh = await fs.promises.open(path, "r");
@@ -16,7 +16,7 @@ async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
 
     return [null, buf.readUInt32LE(0)];
   } catch (e) {
-    return [e as NodeJS.ErrnoException];
+    return [e as Error];
   } finally {
     await fh.close();
   }
@@ -27,10 +27,12 @@ export default async function gunzip(
   inputPath: string,
   inputFileName: string,
   multiBar: MultiBar,
-): AsyncNoThrow<undefined, AssetError> {
+): AsyncNoThrow<undefined> {
   const [errGzSize, uncompressedSize] = await gzipUncompressedSize(inputPath);
   if (errGzSize !== null)
-    return [new AssetError(AssetErrorCodes.GZIP_INVALID_FORMAT)]; // invalid gzip format
+    return [
+      new Error(AssetErrorCodes.GZIP_INVALID_FORMAT, { cause: errGzSize }),
+    ]; // invalid gzip format
 
   const [errPb, pb] = multiBar.create(
     inputFileName,
@@ -64,9 +66,9 @@ export default async function gunzip(
     );
 
     pb?.success();
-  } catch {
+  } catch (err) {
     pb?.error();
-    return [new AssetError(AssetErrorCodes.GZIP_ERROR)];
+    return [new Error(AssetErrorCodes.GZIP_ERROR, { cause: err })];
   } finally {
     pb?.stop();
   }
