@@ -12,6 +12,7 @@ import { STEPS } from "./types.js";
 async function runSteps(manifest: Manifest, multiBar: MultiBar) {
   const steps: Step[] = getSteps(manifest, multiBar);
   let stepName: STEPS = STEPS.NOT_STARTED;
+  const fileName = `${manifest.name}.${manifest.inputType}`;
 
   for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
     const step = steps[stepIndex];
@@ -22,7 +23,7 @@ async function runSteps(manifest: Manifest, multiBar: MultiBar) {
     if (step.name !== STEPS.NOT_STARTED && step.name !== STEPS.NO_ACTION) {
       await reporter({
         code: step.name,
-        file: manifest.name,
+        file: fileName,
       });
     }
 
@@ -36,7 +37,7 @@ async function runSteps(manifest: Manifest, multiBar: MultiBar) {
       }
       await reporter({
         errCode: err.message,
-        file: manifest.name,
+        file: fileName,
         error: err,
       });
     }

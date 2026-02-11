@@ -18,16 +18,16 @@ export default class UnzipHandlers {
   multiBar: MultiBar;
   outputFilePath: string;
   outputFileName: string;
-  inputFilePath: string;
+  inputFileName: string;
   uncompressedSize = 0;
 
   constructor(
-    inputFilePath: string,
+    inputFileName: string,
     outputFilePath: string,
     multiBar: MultiBar,
   ) {
     this.multiBar = multiBar;
-    this.inputFilePath = inputFilePath;
+    this.inputFileName = inputFileName;
     this.outputFilePath = outputFilePath;
     this.outputFileName = extractFileName(outputFilePath);
   }
@@ -60,7 +60,7 @@ export default class UnzipHandlers {
     if (errPbCreate) {
       await reporter({
         errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
-        file: this.inputFilePath,
+        file: this.inputFileName,
         error: errPbCreate,
       });
     }
@@ -105,6 +105,6 @@ export default class UnzipHandlers {
     onUncompress: this.onUncompress,
     onError: this.onError,
     onSuccess: this.onSuccess,
-    renameTo: path.parse(this.inputFilePath).name,
+    renameTo: this.inputFileName,
   });
 }
