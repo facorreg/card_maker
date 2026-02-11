@@ -2,7 +2,8 @@ import { mkdir } from "node:fs/promises";
 import type { AsyncNoThrow } from "../utils/no-throw.js";
 import asyncNoThrow from "../utils/no-throw.js";
 import safeDeletion from "../utils/safe-deletion.js";
-import fetchAsset from "./fetch-asset.js";
+import fetchAsset from "./fetch-asset/index.js";
+import FetchHandlers from "./handlers/fetch-handlers.js";
 import type { MultiBar } from "./progress.js";
 import { AssetErrorCodes, type Manifest, STEPS } from "./types.js";
 import gunzip from "./uncompress/gunzip/index.js";
@@ -47,7 +48,8 @@ export default function getSteps(
     {
       name: STEPS.DOWNLOAD,
       async run() {
-        return fetchAsset(manifest, inputPath, multiBar);
+        const handlers = new FetchHandlers(outputPath, multiBar);
+        return fetchAsset(manifest.url, inputPath, handlers.methodsToOpts());
       },
       async cleanup() {
         return safeDeletion(inputPath, false);
