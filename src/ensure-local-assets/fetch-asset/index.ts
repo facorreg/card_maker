@@ -13,7 +13,6 @@ export default async function fetchAsset(
 
   const [fetchError, res] = await ntFetch(url, {
     signal: AbortSignal.timeout(60_000),
-    method: opts.method || "GET",
   });
 
   if (fetchError !== null || !res)

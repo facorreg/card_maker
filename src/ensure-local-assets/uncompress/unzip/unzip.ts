@@ -135,7 +135,8 @@ export default class Unzip {
           ? this.rename(entry.fileName)
           : entry.fileName;
 
-        await this.mkdir(filePath);
+        const [mkdErr] = await this.mkdir(filePath);
+        if (mkdErr !== null) return resolve([mkdErr]);
 
         const ws = fs.createWriteStream(path.join(this.outputPath, filePath));
 

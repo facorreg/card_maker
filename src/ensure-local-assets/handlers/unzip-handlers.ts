@@ -33,10 +33,11 @@ export default class UnzipHandlers {
       file: this.inputFileName,
       error: err,
     });
+    return [null];
   };
 
   onStart: OnStartUnzip = async (size) => {
-    if (!size) return;
+    if (!size) return [null];
 
     const [errPbCreate, progress] = this.multiBar.create(
       this.inputFileName,
@@ -54,11 +55,13 @@ export default class UnzipHandlers {
         error: errPbCreate,
       });
     }
+    return [null];
   };
 
   onTransform: OnTransformUnzip = (chunk, entry) => {
     this.uncompressedSize += chunk.length;
     this.pb?.update(this.uncompressedSize, { fileName: entry.fileName });
+    return [null];
   };
 
   onUncompress: OnUncompressUnzip = async (entry, outputPath, err) => {
@@ -71,16 +74,19 @@ export default class UnzipHandlers {
       ...logCode,
       file: path.join(outputPath, entry.fileName),
     });
+    return [null];
   };
 
   onSuccess: OnSuccessUnzip = () => {
     this.resetFileName();
     this.pb?.success();
+    return [null];
   };
 
   onError: OnErrorUnzip = () => {
     this.resetFileName();
     this.pb?.error();
+    return [null];
   };
 
   methodsToOpts = (): UnzipOptions => ({

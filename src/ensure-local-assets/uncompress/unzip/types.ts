@@ -1,6 +1,7 @@
 import type { Entry } from "yauzl";
+import type { AsyncNoThrow, NoThrow } from "../../../utils/no-throw.js";
 
-type cbReturn = Promise<void> | void;
+type cbReturn = NoThrow<void> | AsyncNoThrow<void>;
 export type OnGetUncompressedSizeErrorUnzip = (err: Error) => cbReturn;
 export type OnStartUnzip = (size: number) => cbReturn;
 export type OnTransformUnzip = (chunk: Buffer, entry: Entry) => cbReturn;

@@ -37,23 +37,29 @@ export default class GzipHandlers {
     }
 
     this.pb = pb ?? null;
+
+    return [null];
   };
 
   onTransform: OnTransformGzip = (chunk) => {
     this.uncompressedSize += chunk.length;
     this?.pb?.update?.(this.uncompressedSize);
+    return [null];
   };
 
   onSuccess: OnSuccessGzip = () => {
     this?.pb?.success();
+    return [null];
   };
 
   onFinish: OnFinishGzip = () => {
     this?.pb?.stop();
+    return [null];
   };
 
   onError: OnErrorGzip = () => {
     this?.pb?.stop();
+    return [null];
   };
 
   methodsToOpts = (): GzipOptions => ({

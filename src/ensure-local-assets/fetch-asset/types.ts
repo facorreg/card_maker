@@ -10,5 +10,4 @@ export interface FetchAssetOptions {
   onFinish?: DefaultFetchCB;
   onError?: DefaultFetchCB;
   onEnd?: DefaultFetchCB;
-  method?: "GET" | "HEAD";
 }

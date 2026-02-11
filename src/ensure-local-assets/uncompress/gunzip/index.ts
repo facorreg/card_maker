@@ -2,10 +2,10 @@ import fs from "node:fs";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import type { AsyncNoThrow } from "../../../utils/no-throw.js";
+import type { AsyncNoThrow, NoThrow } from "../../../utils/no-throw.js";
 import { AssetErrorCodes } from "../../types.js";
 
-type CbReturn = Promise<void> | void;
+type CbReturn = NoThrow<void> | AsyncNoThrow<void>;
 export type OnStartGzip = (size: number) => CbReturn;
 export type OnTransformGzip = (chunk: Buffer) => CbReturn;
 export type OnSuccessGzip = () => CbReturn;
