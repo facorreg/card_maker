@@ -105,6 +105,6 @@ export default class UnzipHandlers {
     onUncompress: this.onUncompress,
     onError: this.onError,
     onSuccess: this.onSuccess,
-    renameTo: this.inputFileName,
+    renameTo: path.parse(this.inputFileName).name,
   });
 }
