@@ -1,9 +1,12 @@
 import { mkdir } from "node:fs/promises";
+import path from "node:path";
 import type { AsyncNoThrow } from "../utils/no-throw.js";
 import asyncNoThrow from "../utils/no-throw.js";
 import safeDeletion from "../utils/safe-deletion.js";
 import fetchAsset from "./fetch-asset/index.js";
 import FetchHandlers from "./handlers/fetch-handlers.js";
+import GzipHandlers from "./handlers/gunzip-handlers.js";
+import UnzipHandlers from "./handlers/unzip-handlers.js";
 import type { MultiBar } from "./progress.js";
 import { AssetErrorCodes, type Manifest, STEPS } from "./types.js";
 import gunzip from "./uncompress/gunzip/index.js";
@@ -21,10 +24,11 @@ export default function getSteps(
   manifest: Manifest,
   multiBar: MultiBar,
 ): Step[] {
+  const isFolder = manifest.outputType === "folder";
+  const isGzip = manifest.inputType === "gz";
   const outputPath = buildPath(manifest.name, manifest.outputType);
   const inputPath = buildPath(manifest.name, manifest.inputType);
   const dictionariesDirPath = getDictionariesDirPath();
-  const isFolder = manifest.outputType === "folder";
 
   return [
     {
@@ -48,8 +52,19 @@ export default function getSteps(
     {
       name: STEPS.DOWNLOAD,
       async run() {
-        const handlers = new FetchHandlers(outputPath, multiBar);
-        return fetchAsset(manifest.url, inputPath, handlers.methodsToOpts());
+        const handlers = new FetchHandlers(
+          manifest.url,
+          outputPath,
+          multiBar,
+          manifest.roughSize,
+        );
+        const ret = await fetchAsset(
+          manifest.url,
+          inputPath,
+          handlers.methodsToOpts(),
+        );
+
+        return ret;
       },
       async cleanup() {
         return safeDeletion(inputPath, false);
@@ -60,9 +75,18 @@ export default function getSteps(
       name: STEPS.UNCOMPRESS,
       async run() {
         const inputFileName = `${manifest.name}.${manifest.inputType}`;
-        const uncompress = manifest.inputType === "gz" ? gunzip : unzip;
 
-        return uncompress(outputPath, inputPath, inputFileName, multiBar);
+        if (isGzip) {
+          const handlers = new GzipHandlers(inputFileName, multiBar);
+          return gunzip(inputPath, outputPath, handlers.methodsToOpts());
+        }
+
+        const handlers = new UnzipHandlers(inputFileName, multiBar);
+        return unzip(
+          inputPath,
+          path.dirname(outputPath),
+          handlers.methodsToOpts(),
+        );
       },
       async cleanup() {
         return safeDeletion(outputPath, isFolder);

@@ -5,26 +5,22 @@ import type { TransformCallback } from "node:stream";
 import { Transform } from "node:stream";
 import type { Entry, ZipFile } from "yauzl";
 import yauzl from "yauzl";
-import getSubpath from "../../../utils/get-subpath.js";
 import type { AsyncNoThrow, NoThrow } from "../../../utils/no-throw.js";
 import asyncNoThrow from "../../../utils/no-throw.js";
 import { AssetErrorCodes } from "../../types.js";
+import type {
+  OnErrorUnzip,
+  OnGetUncompressedSizeErrorUnzip,
+  OnStartUnzip,
+  OnSuccessUnzip,
+  OnTransformUnzip,
+  OnUncompressUnzip,
+  UnzipOptions,
+} from "./types.js";
 
 interface IterateEntriesCbOptions {
   entry: Entry;
   zipfile: ZipFile;
-}
-
-interface OnUncompressOpts {
-  err: Error | null;
-  entry: Entry;
-  outputPath: string;
-}
-export type OnUncompress = ((opts: OnUncompressOpts) => Promise<void>) | void;
-interface UnzipOptions {
-  outputPath: string;
-  zipPath: string;
-  onUncompress?: OnUncompress;
 }
 
 type IterateEntriesCb = (
@@ -32,23 +28,44 @@ type IterateEntriesCb = (
 ) => AsyncNoThrow<void> | NoThrow<void>;
 
 export default class Unzip {
-  onTransform?: ((chunk: Buffer, entry: Entry) => void) | null;
-  onError?: (() => void) | null;
-  onSuccess?: (() => void) | null;
-  onUncompress?: OnUncompress;
+  inputPath: string;
   outputPath!: string;
-  zipPath: string;
   uncompressedSize: number = 0;
 
-  constructor({ outputPath, zipPath, onUncompress }: UnzipOptions) {
-    this.outputPath = outputPath ?? "";
-    this.zipPath = zipPath;
-    this.onUncompress = onUncompress;
+  onGetUncompressedSizeError?: OnGetUncompressedSizeErrorUnzip;
+  onStart?: OnStartUnzip;
+  onTransform?: OnTransformUnzip;
+  onUncompress?: OnUncompressUnzip;
+  onSuccess?: OnSuccessUnzip;
+  onError?: OnErrorUnzip;
+  renameTo: string = "";
+
+  constructor(inputPath: string, outputPath: string, opts?: UnzipOptions) {
+    this.outputPath = outputPath;
+    this.inputPath = inputPath;
+    if (!opts) return;
+
+    this.onGetUncompressedSizeError = opts.onGetUncompressedSizeError;
+    this.onStart = opts.onStart;
+    this.onTransform = opts.onTransform;
+    this.onUncompress = opts.onUncompress;
+    this.onSuccess = opts.onSuccess;
+    this.onError = opts.onError;
+    this.renameTo = opts.renameTo || "";
   }
 
-  iterateEntries(callback: IterateEntriesCb): AsyncNoThrow<void> {
+  async start() {
+    const [err] = await this.getUncompressedSize();
+    if (err !== null) await this?.onGetUncompressedSizeError?.(err);
+    this.onStart?.(this.uncompressedSize);
+  }
+
+  iterateEntries(
+    callback: IterateEntriesCb,
+    isUncompress: boolean = false,
+  ): AsyncNoThrow<void> {
     return new Promise((resolve) => {
-      yauzl.open(this.zipPath, { lazyEntries: true }, (err, zipfile) => {
+      yauzl.open(this.inputPath, { lazyEntries: true }, (err, zipfile) => {
         if (err)
           return resolve([
             new Error(AssetErrorCodes.UNZIP_OPEN_ERROR, { cause: err }),
@@ -62,11 +79,7 @@ export default class Unzip {
             const promise = callback({ entry, zipfile });
             const [e] = promise instanceof Promise ? await promise : promise;
 
-            this?.onUncompress?.({
-              entry,
-              outputPath: this.outputPath,
-              err: e,
-            });
+            if (isUncompress) this?.onUncompress?.(entry, this.outputPath, e);
           }
 
           zipfile.readEntry();
@@ -85,8 +98,8 @@ export default class Unzip {
     });
   }
 
-  async mkdir(filePath: string): AsyncNoThrow<void> {
-    const zipFolderSubpath = getSubpath(filePath);
+  async mkdir(fileName: string): AsyncNoThrow<void> {
+    const zipFolderSubpath = path.dirname(fileName);
     const folderPath = path.join(this.outputPath, zipFolderSubpath);
 
     const ntMkdir = asyncNoThrow(mkdir, new Error(AssetErrorCodes.MKDIR_ERROR));
@@ -94,6 +107,18 @@ export default class Unzip {
     const [err] = await ntMkdir(folderPath, { recursive: true });
 
     return [err];
+  }
+
+  rename(oldFilePath: string): string {
+    const { dir, name, ext } = path.parse(oldFilePath);
+    const isDir = Boolean(dir);
+
+    if (isDir) {
+      const [root = ""] = dir.split("/");
+      return path.join(dir.replace(root, this.renameTo), `${name}${ext}`);
+    }
+
+    return `${this.renameTo}${ext}`;
   }
 
   async uncompressEntryCallback({
@@ -106,11 +131,13 @@ export default class Unzip {
           return resolve([err]);
         }
 
-        await this.mkdir(entry.fileName);
+        const filePath = this.renameTo
+          ? this.rename(entry.fileName)
+          : entry.fileName;
 
-        const ws = fs.createWriteStream(
-          path.join(this.outputPath, entry.fileName),
-        );
+        await this.mkdir(filePath);
+
+        const ws = fs.createWriteStream(path.join(this.outputPath, filePath));
 
         const done = async (e?: Error) => {
           ws.removeAllListeners();
@@ -140,7 +167,10 @@ export default class Unzip {
   }
 
   uncompressEntries() {
-    return this.iterateEntries((opts) => this.uncompressEntryCallback(opts));
+    return this.iterateEntries(
+      (opts) => this.uncompressEntryCallback(opts),
+      true,
+    );
   }
 
   getUncompressedSizeCallback({
@@ -150,14 +180,15 @@ export default class Unzip {
     return [null];
   }
 
-  async getUncompressedSize(): AsyncNoThrow<number> {
+  async getUncompressedSize(): AsyncNoThrow<void> {
     if (!this.uncompressedSize) {
-      const [err] = await this.iterateEntries((opts) =>
+      const ret = await this.iterateEntries((opts) =>
         this.getUncompressedSizeCallback(opts),
       );
-      if (err !== null) return [err];
+
+      return ret;
     }
 
-    return Promise.resolve([null, this.uncompressedSize]);
+    return Promise.resolve([null]);
   }
 }

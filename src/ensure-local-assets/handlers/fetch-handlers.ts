@@ -2,7 +2,7 @@ import path from "node:path";
 import fileLogger from "../../utils/logger/file.js";
 import safeDeletion from "../../utils/safe-deletion.js";
 import type {
-  FetchAssetOpts,
+  FetchAssetOptions,
   OnFetchChunk,
   OnFetchStart,
 } from "../fetch-asset/types.js";
@@ -33,17 +33,32 @@ async function createPbHandler(
 
 export default class FetchHandlers {
   pb: SingleBar | undefined;
+  multiBar!: MultiBar;
   downloaded = 0;
   outputPath!: string;
-  multiBar!: MultiBar;
+  url: string;
+  roughSize: number;
 
-  constructor(outputPath: string, multiBar: MultiBar) {
+  constructor(
+    url: string,
+    outputPath: string,
+    multiBar: MultiBar,
+    roughSize?: number,
+  ) {
+    this.url = url;
     this.outputPath = outputPath;
     this.multiBar = multiBar;
+    this.roughSize = roughSize || 0;
+  }
+
+  getContentLengthFromHeaders(res: Response): number {
+    return Number(res.headers.get("content-length") ?? 0);
   }
 
   onWriteStart: OnFetchStart = async (res) => {
-    const contentLength = Number(res.headers.get("content-length") ?? 0);
+    const contentLength =
+      this.getContentLengthFromHeaders(res) || this.roughSize;
+
     this.pb = await createPbHandler(
       path.basename(this.outputPath),
       contentLength,
@@ -53,10 +68,15 @@ export default class FetchHandlers {
 
   onChunk: OnFetchChunk = (chunk) => {
     this.downloaded += chunk.length;
-    this.pb?.update(this.downloaded);
+    this.pb?.update(
+      this.roughSize
+        ? Math.min(this.downloaded, this.roughSize)
+        : this.downloaded,
+    );
   };
 
   onFinish = () => {
+    if (this.roughSize) this.pb?.update(this.roughSize);
     this.pb?.success?.();
   };
 
@@ -69,7 +89,7 @@ export default class FetchHandlers {
     this.pb?.stop();
   };
 
-  methodsToOpts(): FetchAssetOpts {
+  methodsToOpts(): FetchAssetOptions {
     return {
       onStart: this.onWriteStart,
       onChunk: this.onChunk,

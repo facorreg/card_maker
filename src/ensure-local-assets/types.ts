@@ -6,6 +6,7 @@ export interface Manifest {
   lang: string;
   name: string;
   url: string;
+  roughSize?: number;
   inputType: CompressionTypes;
   outputType: DecompressedTypes;
 }

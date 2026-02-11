@@ -4,10 +4,11 @@ export type OnFetchChunk = (
 ) => Promise<void> | void;
 export type DefaultFetchCB = () => Promise<void> | void;
 
-export interface FetchAssetOpts {
+export interface FetchAssetOptions {
   onStart?: OnFetchStart;
   onChunk?: OnFetchChunk;
   onFinish?: DefaultFetchCB;
   onError?: DefaultFetchCB;
   onEnd?: DefaultFetchCB;
+  method?: "GET" | "HEAD";
 }

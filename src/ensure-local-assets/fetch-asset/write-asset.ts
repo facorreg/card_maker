@@ -4,7 +4,7 @@ import type { AsyncNoThrow } from "../../utils/no-throw.js";
 import asyncNoThrow from "../../utils/no-throw.js";
 import safeDeletion from "../../utils/safe-deletion.js";
 import { AssetErrorCodes } from "../types.js";
-import type { FetchAssetOpts, OnFetchChunk } from "./types.js";
+import type { FetchAssetOptions, OnFetchChunk } from "./types.js";
 
 async function iterateChunks(
   res: Response,
@@ -25,7 +25,7 @@ async function iterateChunks(
 export default async function writeAsset(
   res: Response,
   outputPath: string,
-  opts?: FetchAssetOpts,
+  opts?: FetchAssetOptions,
 ): AsyncNoThrow<void> {
   await opts?.onStart?.(res);
   const file = fs.createWriteStream(outputPath);

@@ -58,8 +58,6 @@ export default async function ensureLocalAssets(): Promise<void> {
     ),
   );
 
-  // @TODO sum up log
-
-  multiBar.multiBar.stop();
+  multiBar.stop();
   await logSummary();
 }

@@ -2,10 +2,22 @@ import fs from "node:fs";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import fileLogger from "../../../utils/logger/file.js";
 import type { AsyncNoThrow } from "../../../utils/no-throw.js";
-import type { MultiBar } from "../../progress.js";
 import { AssetErrorCodes } from "../../types.js";
+
+type CbReturn = Promise<void> | void;
+export type OnStartGzip = (size: number) => CbReturn;
+export type OnTransformGzip = (chunk: Buffer) => CbReturn;
+export type OnSuccessGzip = () => CbReturn;
+export type OnErrorGzip = () => CbReturn;
+export type OnFinishGzip = () => CbReturn;
+export interface GzipOptions {
+  onStart?: OnStartGzip;
+  onTransform?: OnTransformGzip;
+  onSuccess?: OnSuccessGzip;
+  onFinish?: OnFinishGzip;
+  onError?: OnErrorGzip;
+}
 
 async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
   const fh = await fs.promises.open(path, "r");
@@ -23,10 +35,9 @@ async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
 }
 
 export default async function gunzip(
-  outputPath: string,
   inputPath: string,
-  inputFileName: string,
-  multiBar: MultiBar,
+  outputPath: string,
+  opts?: GzipOptions,
 ): AsyncNoThrow<void> {
   const [errGzSize, uncompressedSize] = await gzipUncompressedSize(inputPath);
   if (errGzSize !== null)
@@ -34,26 +45,11 @@ export default async function gunzip(
       new Error(AssetErrorCodes.GZIP_INVALID_FORMAT, { cause: errGzSize }),
     ]; // invalid gzip format
 
-  const [errPb, pb] = multiBar.create(
-    inputFileName,
-    "uncompress",
-    uncompressedSize,
-  );
-  /* handle Log */
-  if (errPb) {
-    await fileLogger({
-      errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
-      file: inputFileName,
-      error: errPb,
-    });
-  }
-
-  let uncompressed = 0;
+  await opts?.onStart?.(uncompressedSize || 0);
 
   const transform = new Transform({
-    transform: (chunk: Buffer, _, callback) => {
-      uncompressed += chunk.length;
-      pb?.update?.(uncompressed);
+    transform: async (chunk: Buffer, _, callback) => {
+      await opts?.onTransform?.(chunk);
       callback(null, chunk);
     },
   });
@@ -66,12 +62,12 @@ export default async function gunzip(
       fs.createWriteStream(outputPath),
     );
 
-    pb?.success();
+    await opts?.onSuccess?.();
   } catch (err) {
-    pb?.error();
+    await opts?.onError?.();
     return [new Error(AssetErrorCodes.GZIP_ERROR, { cause: err })];
   } finally {
-    pb?.stop();
+    await opts?.onFinish?.();
   }
 
   return [null];

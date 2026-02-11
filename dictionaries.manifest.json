@@ -19,5 +19,13 @@
 		"url": "https://github.com/KanjiVG/kanjivg/releases/download/r20250816/kanjivg-20250816-all.zip",
 		"inputType": "zip",
 		"outputType": "folder"
+	},
+	{
+		"lang": "jp",
+		"name": "bccwj",
+		"url": "https://repository.ninjal.ac.jp/record/3234/files/BCCWJ_frequencylist_suw_ver1_0.zip",
+		"inputType": "zip",
+		"outputType": "tsv",
+		"roughSize": 8000000
 	}
 ]

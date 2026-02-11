@@ -68,6 +68,11 @@ export class MultiBar {
 
     return [null, new SingleBar(bar, state, contentLength)];
   }
+
+  stop() {
+    this.multiBar.stop();
+    console.log(""); //\n
+  }
 }
 
 export class SingleBar {
