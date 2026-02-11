@@ -1,4 +1,3 @@
-import path from "node:path";
 import fileLogger from "../../utils/logger/file.js";
 import safeDeletion from "../../utils/safe-deletion.js";
 import type {
@@ -8,6 +7,7 @@ import type {
 } from "../fetch-asset/types.js";
 import type { MultiBar, SingleBar } from "../progress.js";
 import { AssetErrorCodes } from "../types.js";
+import extractFileName from "../utils/extract-file-name.js";
 
 async function createPbHandler(
   fileName: string,
@@ -35,18 +35,21 @@ export default class FetchHandlers {
   pb: SingleBar | undefined;
   multiBar!: MultiBar;
   downloaded = 0;
-  outputPath!: string;
+  inputFilePath!: string;
+  outputFilePath!: string;
   url: string;
   roughSize: number;
 
   constructor(
     url: string,
-    outputPath: string,
+    inputFilePath: string,
+    outputFilePath: string,
     multiBar: MultiBar,
     roughSize?: number,
   ) {
     this.url = url;
-    this.outputPath = outputPath;
+    this.inputFilePath = inputFilePath;
+    this.outputFilePath = outputFilePath;
     this.multiBar = multiBar;
     this.roughSize = roughSize || 0;
   }
@@ -60,7 +63,7 @@ export default class FetchHandlers {
       this.getContentLengthFromHeaders(res) || this.roughSize;
 
     this.pb = await createPbHandler(
-      path.basename(this.outputPath),
+      extractFileName(this.inputFilePath),
       contentLength,
       this.multiBar,
     );
@@ -81,7 +84,7 @@ export default class FetchHandlers {
   };
 
   onError = async () => {
-    await safeDeletion(this.outputPath, false);
+    await safeDeletion(this.outputFilePath, false);
     this.pb?.error();
   };
 

@@ -11,26 +11,35 @@ import type {
   OnUncompressUnzip,
   UnzipOptions,
 } from "../uncompress/unzip/types.js";
+import extractFileName from "../utils/extract-file-name.js";
 
 export default class UnzipHandlers {
   pb!: SingleBar | null;
   multiBar: MultiBar;
-  inputFileName: string;
+  outputFilePath: string;
+  outputFileName: string;
+  inputFilePath: string;
   uncompressedSize = 0;
 
-  constructor(inputFileName: string, multiBar: MultiBar) {
+  constructor(
+    inputFilePath: string,
+    outputFilePath: string,
+    multiBar: MultiBar,
+  ) {
     this.multiBar = multiBar;
-    this.inputFileName = inputFileName;
+    this.inputFilePath = inputFilePath;
+    this.outputFilePath = outputFilePath;
+    this.outputFileName = extractFileName(outputFilePath);
   }
 
   resetFileName() {
-    this.pb?.update(this.uncompressedSize, { fileName: this.inputFileName });
+    this.pb?.update(this.uncompressedSize, { fileName: this.outputFileName });
   }
 
   onGetUncompressedSizeError: OnGetUncompressedSizeErrorUnzip = async (err) => {
     await fileLogger({
       errCode: AssetErrorCodes.UNZIP_UNCOMPRESSED_SIZE_ERROR,
-      file: this.inputFileName,
+      file: this.outputFileName,
       error: err,
     });
     return [null];
@@ -40,7 +49,7 @@ export default class UnzipHandlers {
     if (!size) return [null];
 
     const [errPbCreate, progress] = this.multiBar.create(
-      this.inputFileName,
+      this.outputFileName,
       "uncompress",
       size,
     );
@@ -51,7 +60,7 @@ export default class UnzipHandlers {
     if (errPbCreate) {
       await fileLogger({
         errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
-        file: this.inputFileName,
+        file: this.inputFilePath,
         error: errPbCreate,
       });
     }
@@ -96,6 +105,6 @@ export default class UnzipHandlers {
     onUncompress: this.onUncompress,
     onError: this.onError,
     onSuccess: this.onSuccess,
-    renameTo: path.parse(this.inputFileName).name,
+    renameTo: path.parse(this.inputFilePath).name,
   });
 }

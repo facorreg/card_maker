@@ -43,10 +43,11 @@ export class MultiBar {
 
   start(): cliProgress.MultiBar {
     this.multiBar = new cliProgress.MultiBar({
-      format: `${"[{status}]".padEnd(15)}| {bar} | {percentage}% | {fileName}`,
+      format: `${"[{status}]"} | {bar} | {percentage}% | {fileName}`,
       barIncompleteChar: " ▁",
       barCompleteChar: "▂",
       hideCursor: true,
+      autopadding: true,
     });
 
     return this.multiBar;

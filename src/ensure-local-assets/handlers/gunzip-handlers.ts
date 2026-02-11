@@ -9,21 +9,30 @@ import type {
   OnSuccessGzip,
   OnTransformGzip,
 } from "../uncompress/gunzip/index.js";
+import extractFileName from "../utils/extract-file-name.js";
 
 export default class GzipHandlers {
   pb!: SingleBar | null;
   multiBar: MultiBar;
   inputFileName: string;
+  outputFilePath: string;
+  outputFileName: string;
   uncompressedSize = 0;
 
-  constructor(inputFileName: string, multiBar: MultiBar) {
+  constructor(
+    inputFileName: string,
+    outputFilePath: string,
+    multiBar: MultiBar,
+  ) {
     this.inputFileName = inputFileName;
+    this.outputFilePath = outputFilePath;
     this.multiBar = multiBar;
+    this.outputFileName = extractFileName(outputFilePath);
   }
 
   onStart: OnStartGzip = async (size) => {
     const [errPb, pb] = this.multiBar.create(
-      this.inputFileName,
+      this.outputFileName,
       "uncompress",
       size,
     );

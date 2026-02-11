@@ -62,7 +62,7 @@ export default class Unzip {
 
   iterateEntries(
     callback: IterateEntriesCb,
-    isUncompress: boolean = false,
+    type: "uncompress" | "traverse",
   ): AsyncNoThrow<void> {
     return new Promise((resolve) => {
       yauzl.open(this.inputPath, { lazyEntries: true }, (err, zipfile) => {
@@ -79,7 +79,8 @@ export default class Unzip {
             const promise = callback({ entry, zipfile });
             const [e] = promise instanceof Promise ? await promise : promise;
 
-            if (isUncompress) this?.onUncompress?.(entry, this.outputPath, e);
+            if (type === "uncompress")
+              this?.onUncompress?.(entry, this.outputPath, e);
           }
 
           zipfile.readEntry();
@@ -170,7 +171,7 @@ export default class Unzip {
   uncompressEntries() {
     return this.iterateEntries(
       (opts) => this.uncompressEntryCallback(opts),
-      true,
+      "uncompress",
     );
   }
 
@@ -183,8 +184,9 @@ export default class Unzip {
 
   async getUncompressedSize(): AsyncNoThrow<void> {
     if (!this.uncompressedSize) {
-      const ret = await this.iterateEntries((opts) =>
-        this.getUncompressedSizeCallback(opts),
+      const ret = await this.iterateEntries(
+        (opts) => this.getUncompressedSizeCallback(opts),
+        "traverse",
       );
 
       return ret;

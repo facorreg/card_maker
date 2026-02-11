@@ -26,8 +26,8 @@ export default function getSteps(
 ): Step[] {
   const isFolder = manifest.outputType === "folder";
   const isGzip = manifest.inputType === "gz";
-  const outputPath = buildPath(manifest.name, manifest.outputType);
-  const inputPath = buildPath(manifest.name, manifest.inputType);
+  const outputFilePath = buildPath(manifest.name, manifest.outputType);
+  const inputFilePath = buildPath(manifest.name, manifest.inputType);
   const dictionariesDirPath = getDictionariesDirPath();
 
   return [
@@ -40,13 +40,13 @@ export default function getSteps(
         });
         if (mkErr)
           return [new Error(AssetErrorCodes.MKDIR_ERROR, { cause: mkErr })];
-        return customAccess(outputPath, manifest.outputType);
+        return customAccess(outputFilePath, manifest.outputType);
       },
     },
     {
       name: STEPS.CHECK_COMPRESSED_ARCHIVE,
       async run() {
-        return customAccess(inputPath, manifest.inputType);
+        return customAccess(inputFilePath, manifest.inputType);
       },
     },
     {
@@ -54,20 +54,21 @@ export default function getSteps(
       async run() {
         const handlers = new FetchHandlers(
           manifest.url,
-          outputPath,
+          inputFilePath,
+          outputFilePath,
           multiBar,
           manifest.roughSize,
         );
         const ret = await fetchAsset(
           manifest.url,
-          inputPath,
+          inputFilePath,
           handlers.methodsToOpts(),
         );
 
         return ret;
       },
       async cleanup() {
-        return safeDeletion(inputPath, false);
+        return safeDeletion(inputFilePath, false);
       },
       next: STEPS.UNCOMPRESS,
     },
@@ -77,19 +78,33 @@ export default function getSteps(
         const inputFileName = `${manifest.name}.${manifest.inputType}`;
 
         if (isGzip) {
-          const handlers = new GzipHandlers(inputFileName, multiBar);
-          return gunzip(inputPath, outputPath, handlers.methodsToOpts());
+          const handlers = new GzipHandlers(
+            inputFileName,
+            outputFilePath,
+            multiBar,
+          );
+
+          return gunzip(
+            inputFilePath,
+            outputFilePath,
+            handlers.methodsToOpts(),
+          );
         }
 
-        const handlers = new UnzipHandlers(inputFileName, multiBar);
+        const handlers = new UnzipHandlers(
+          inputFileName,
+          outputFilePath,
+          multiBar,
+        );
+
         return unzip(
-          inputPath,
-          path.dirname(outputPath),
+          inputFilePath,
+          path.dirname(outputFilePath),
           handlers.methodsToOpts(),
         );
       },
       async cleanup() {
-        return safeDeletion(outputPath, isFolder);
+        return safeDeletion(outputFilePath, isFolder);
       },
       next: STEPS.CLEANUP,
     },
@@ -97,7 +112,7 @@ export default function getSteps(
       // success cleanup
       name: STEPS.CLEANUP,
       async run() {
-        return safeDeletion(inputPath, false);
+        return safeDeletion(inputFilePath, false);
       },
       next: STEPS.NO_ACTION,
     },
