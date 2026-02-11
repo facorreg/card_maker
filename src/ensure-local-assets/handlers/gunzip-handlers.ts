@@ -1,4 +1,4 @@
-import fileLogger from "../../utils/logger/file.js";
+import reporter from "../../utils/logger/reporter.js";
 import type { MultiBar, SingleBar } from "../progress.js";
 import { AssetErrorCodes } from "../types.js";
 import type {
@@ -38,7 +38,7 @@ export default class GzipHandlers {
     );
     /* handle Log */
     if (errPb) {
-      await fileLogger({
+      await reporter({
         errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
         file: this.inputFileName,
         error: errPb,

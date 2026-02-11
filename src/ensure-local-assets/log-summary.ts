@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import chalk from "chalk";
 import log from "../utils/logger/console.js";
-import fileLogger from "../utils/logger/file.js";
+import reporter from "../utils/logger/reporter.js";
 import type { AsyncNoThrow } from "../utils/no-throw.js";
 import { LOG_OUTPUT } from "./constants.js";
 import { type AssetErrorCodes, STEPS } from "./types.js";
@@ -108,7 +108,7 @@ async function logSummary() {
   );
 
   if (err)
-    await fileLogger({
+    await reporter({
       errCode: err.message,
       file: "none",
       error: (err.cause as Error) ?? err,

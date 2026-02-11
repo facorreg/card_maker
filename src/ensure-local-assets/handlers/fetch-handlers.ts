@@ -1,4 +1,4 @@
-import fileLogger from "../../utils/logger/file.js";
+import reporter from "../../utils/logger/reporter.js";
 import safeDeletion from "../../utils/safe-deletion.js";
 import type {
   FetchAssetOptions,
@@ -21,7 +21,7 @@ async function createPbHandler(
   );
 
   if (error) {
-    await fileLogger({
+    await reporter({
       errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
       file: fileName,
       error,

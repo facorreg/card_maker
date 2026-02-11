@@ -1,5 +1,5 @@
 import path from "node:path";
-import fileLogger from "../../utils/logger/file.js";
+import reporter from "../../utils/logger/reporter.js";
 import type { MultiBar, SingleBar } from "../progress.js";
 import { AssetErrorCodes, STEPS } from "../types.js";
 import type {
@@ -37,7 +37,7 @@ export default class UnzipHandlers {
   }
 
   onGetUncompressedSizeError: OnGetUncompressedSizeErrorUnzip = async (err) => {
-    await fileLogger({
+    await reporter({
       errCode: AssetErrorCodes.UNZIP_UNCOMPRESSED_SIZE_ERROR,
       file: this.outputFileName,
       error: err,
@@ -58,7 +58,7 @@ export default class UnzipHandlers {
 
     // error logging
     if (errPbCreate) {
-      await fileLogger({
+      await reporter({
         errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
         file: this.inputFilePath,
         error: errPbCreate,
@@ -79,7 +79,7 @@ export default class UnzipHandlers {
         ? { errCode: AssetErrorCodes.UNZIP_FILE_ERROR, error: err }
         : { code: STEPS.UNCOMPRESS_INNER_FILE };
 
-    await fileLogger({
+    await reporter({
       ...logCode,
       file: path.join(outputPath, entry.fileName),
     });

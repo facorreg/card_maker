@@ -29,7 +29,7 @@ function dataFormatter(opts: DataFormatterOpts) {
   return `${input}\n`;
 }
 
-export default async function fileLogger(
+export default async function reporter(
   opts: DataFormatterOpts,
 ): AsyncNoThrow<void> {
   const input = dataFormatter(opts);

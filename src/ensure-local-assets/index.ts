@@ -2,7 +2,7 @@ import dictionariesManifest from "../../dictionaries.manifest.json" with {
   type: "json",
 };
 import logger from "../utils/logger/console.js";
-import fileLogger from "../utils/logger/file.js";
+import reporter from "../utils/logger/reporter.js";
 import getSteps, { type Step } from "./get-steps.js";
 import logSummary from "./log-summary.js";
 import { MultiBar } from "./progress.js";
@@ -20,7 +20,7 @@ async function runSteps(manifest: Manifest, multiBar: MultiBar) {
     if (stepName !== step.name) continue;
 
     if (step.name !== STEPS.NOT_STARTED && step.name !== STEPS.NO_ACTION) {
-      await fileLogger({
+      await reporter({
         code: step.name,
         file: manifest.name,
       });
@@ -34,7 +34,7 @@ async function runSteps(manifest: Manifest, multiBar: MultiBar) {
         await steps[index]?.cleanup?.();
         index--;
       }
-      await fileLogger({
+      await reporter({
         errCode: err.message,
         file: manifest.name,
         error: err,
