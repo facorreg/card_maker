@@ -2,8 +2,8 @@ import fs from "node:fs";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import type { AsyncNoThrow, NoThrow } from "../../../utils/no-throw.js";
-import { AssetErrorCodes } from "../../types.js";
+import { AssetErrorCodes } from "#ELA/types.js";
+import type { AsyncNoThrow, NoThrow } from "#utils/no-throw.js";
 
 type CbReturn = NoThrow<void> | AsyncNoThrow<void>;
 export type OnStartGzip = (size: number) => CbReturn;

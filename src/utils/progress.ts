@@ -1,7 +1,7 @@
 import chalk from "chalk";
 
 import cliProgress from "cli-progress";
-import type { NoThrow } from "../utils/no-throw.js";
+import type { NoThrow } from "#utils/no-throw.js";
 
 type Status = "start" | "success" | "error";
 type States = "download" | "uncompress";

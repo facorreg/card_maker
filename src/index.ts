@@ -1,8 +1,8 @@
 import "dotenv/config";
-import { LOG_OUTPUT } from "./ensure-local-assets/constants.js";
-import ensureLocalAssets from "./ensure-local-assets/index.js";
-import log from "./utils/logger/console.js";
-import safeDeletion from "./utils/safe-deletion.js";
+import { LOG_OUTPUT } from "#ELA/constants.js";
+import ensureLocalAssets from "#ELA/index.js";
+import log from "#logger/console.js";
+import safeDeletion from "#utils/safe-deletion.js";
 
 /*
 @TODO

@@ -1,6 +1,5 @@
-import reporter from "../../utils/logger/reporter.js";
-import type { MultiBar, SingleBar } from "../progress.js";
-import { AssetErrorCodes } from "../types.js";
+import { AssetErrorCodes } from "#ELA/types.js";
+import extractFileName from "#ELA_Utils/extract-file-name.js";
 import type {
   GzipOptions,
   OnErrorGzip,
@@ -8,8 +7,9 @@ import type {
   OnStartGzip,
   OnSuccessGzip,
   OnTransformGzip,
-} from "../uncompress/gunzip/index.js";
-import extractFileName from "../utils/extract-file-name.js";
+} from "#ELA_Utils/uncompress/gunzip/index.js";
+import reporter from "#logger/reporter.js";
+import type { MultiBar, SingleBar } from "#utils/progress.js";
 
 export default class GzipHandlers {
   pb!: SingleBar | null;

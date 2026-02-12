@@ -1,4 +1,4 @@
-import type { Step } from "../../utils/run-steps/types.js";
+import type { Step } from "#utils/run-steps/types.js";
 import type { RunStepsOpts } from "./types.js";
 
 export default async function runSteps<C>(

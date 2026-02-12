@@ -1,6 +1,6 @@
-import type { AsyncNoThrow } from "../../utils/no-throw.js";
-import asyncNoThrow from "../../utils/no-throw.js";
-import { AssetErrorCodes } from "../types.js";
+import { AssetErrorCodes } from "#ELA/types.js";
+import type { AsyncNoThrow } from "#utils/no-throw.js";
+import asyncNoThrow from "#utils/no-throw.js";
 import type { FetchAssetOptions } from "./types.js";
 import writeAsset from "./write-asset.js";
 

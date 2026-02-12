@@ -1,7 +1,6 @@
 import path from "node:path";
-import reporter from "../../utils/logger/reporter.js";
-import type { MultiBar, SingleBar } from "../progress.js";
-import { AssetErrorCodes, ELA_StepsCodes } from "../types.js";
+import { AssetErrorCodes, ELA_StepsCodes } from "#ELA/types.js";
+import extractFileName from "#ELA_Utils/extract-file-name.js";
 import type {
   OnErrorUnzip,
   OnGetUncompressedSizeErrorUnzip,
@@ -10,8 +9,9 @@ import type {
   OnTransformUnzip,
   OnUncompressUnzip,
   UnzipOptions,
-} from "../uncompress/unzip/types.js";
-import extractFileName from "../utils/extract-file-name.js";
+} from "#ELA_Utils/uncompress/unzip/types.js";
+import reporter from "#logger/reporter.js";
+import type { MultiBar, SingleBar } from "#utils/progress.js";
 
 export default class UnzipHandlers {
   pb!: SingleBar | null;

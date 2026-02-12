@@ -3,15 +3,22 @@
 	"version": "1.0.0",
 	"description": "",
 	"main": "index.js",
+	"type": "module",
 	"scripts": {
 		"build": "tsc",
 		"start": "node dist/index.js",
 		"dev": "rm -rf dictionaries && npm run build && npm run start"
 	},
+	"imports": {
+		"#ELA/*": "./dist/ensure-local-assets/*",
+		"#ELA_Utils/*": "./dist/ensure-local-assets/utils/*",
+		"#ELA_Handlers/*": "./dist/ensure-local-assets/handlers/*",
+		"#utils/*": "./dist/utils/*",
+		"#logger/*": "./dist/utils/logger/*"
+	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
-	"type": "module",
 	"devDependencies": {
 		"@biomejs/biome": "2.3.11",
 		"@types/node": "^25.0.9",

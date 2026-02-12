@@ -1,8 +1,7 @@
 import { rm, unlink } from "node:fs/promises";
-import { AssetErrorCodes } from "../ensure-local-assets/types.js";
-import hasCode from "./has-code.js";
-import type { AsyncNoThrow } from "./no-throw.js";
-import asyncNoThrow from "./no-throw.js";
+import { AssetErrorCodes } from "#ELA/types.js";
+import hasCode from "#utils/has-code.js";
+import asyncNoThrow, { type AsyncNoThrow } from "#utils/no-throw.js";
 
 export default async function safeDeletion(
   path: string,

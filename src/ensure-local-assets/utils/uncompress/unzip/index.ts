@@ -1,4 +1,4 @@
-import type { AsyncNoThrow } from "../../../utils/no-throw.js";
+import type { AsyncNoThrow } from "#utils/no-throw.js";
 import type { UnzipOptions } from "./types.js";
 import Unzip from "./unzip.js";
 

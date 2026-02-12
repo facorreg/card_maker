@@ -1,10 +1,9 @@
-import logger from "../../utils/logger/console.js";
-import reporter from "../../utils/logger/reporter.js";
-import type { RunStepsOpts, Step } from "../../utils/run-steps/types.js";
-import getSteps from "../get-steps.js";
-import type { MultiBar } from "../progress.js";
-import type { Manifest } from "../types.js";
-import { ELA_StepsCodes } from "../types.js";
+import getSteps from "#ELA/get-steps.js";
+import { ELA_StepsCodes, type Manifest } from "#ELA/types.js";
+import logger from "#logger/console.js";
+import reporter from "#logger/reporter.js";
+import type { MultiBar } from "#utils/progress.js";
+import type { RunStepsOpts, Step } from "#utils/run-steps/types.js";
 
 export default class ELA_RunStepHandler {
   multiBar: MultiBar;

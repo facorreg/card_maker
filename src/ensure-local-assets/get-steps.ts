@@ -1,18 +1,18 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import asyncNoThrow from "../utils/no-throw.js";
-import type { Step } from "../utils/run-steps/types.js";
-import safeDeletion from "../utils/safe-deletion.js";
-import fetchAsset from "./fetch-asset/index.js";
-import FetchHandlers from "./handlers/fetch-handlers.js";
-import GzipHandlers from "./handlers/gunzip-handlers.js";
-import UnzipHandlers from "./handlers/unzip-handlers.js";
-import type { MultiBar } from "./progress.js";
+import fetchAsset from "#ELA/fetch-asset/index.js";
+import FetchHandlers from "#ELA_Handlers/fetch-handlers.js";
+import GzipHandlers from "#ELA_Handlers/gunzip-handlers.js";
+import UnzipHandlers from "#ELA_Handlers/unzip-handlers.js";
+import { buildPath, getDictionariesDirPath } from "#ELA_Utils/build-paths.js";
+import customAccess from "#ELA_Utils/custom-access.js";
+import gunzip from "#ELA_Utils/uncompress/gunzip/index.js";
+import unzip from "#ELA_Utils/uncompress/unzip/index.js";
+import asyncNoThrow from "#utils/no-throw.js";
+import type { MultiBar } from "#utils/progress.js";
+import type { Step } from "#utils/run-steps/types.js";
+import safeDeletion from "#utils/safe-deletion.js";
 import { AssetErrorCodes, ELA_StepsCodes, type Manifest } from "./types.js";
-import gunzip from "./uncompress/gunzip/index.js";
-import unzip from "./uncompress/unzip/index.js";
-import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
-import customAccess from "./utils/custom-access.js";
 
 export default function getSteps(
   manifest: Manifest,

@@ -1,13 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import {
-  LOG_FOLDER_PATH,
-  LOG_OUTPUT,
-} from "../../ensure-local-assets/constants.js";
-import {
-  AssetErrorCodes,
-  type ELA_StepsCodes,
-} from "../../ensure-local-assets/types.js";
-import asyncNoThrow, { type AsyncNoThrow } from "../no-throw.js";
+import { LOG_FOLDER_PATH, LOG_OUTPUT } from "#ELA/constants.js";
+import { AssetErrorCodes, type ELA_StepsCodes } from "#ELA/types.js";
+import asyncNoThrow, { type AsyncNoThrow } from "#utils/no-throw.js";
 
 const errorReporter = {
   mkdirFailed: new Error(AssetErrorCodes.MKDIR_ERROR),

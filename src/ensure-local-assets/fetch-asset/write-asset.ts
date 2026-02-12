@@ -1,9 +1,9 @@
 import { once } from "node:events";
 import fs from "node:fs";
-import type { AsyncNoThrow } from "../../utils/no-throw.js";
-import asyncNoThrow from "../../utils/no-throw.js";
-import safeDeletion from "../../utils/safe-deletion.js";
-import { AssetErrorCodes } from "../types.js";
+import { AssetErrorCodes } from "#ELA/types.js";
+import type { AsyncNoThrow } from "#utils/no-throw.js";
+import asyncNoThrow from "#utils/no-throw.js";
+import safeDeletion from "#utils/safe-deletion.js";
 import type { FetchAssetOptions, OnFetchChunk } from "./types.js";
 
 async function iterateChunks(

@@ -4,6 +4,16 @@
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
+    // "ignoreDeprecations": "6.0",
+    // "baseUrl": ".",
+    "paths": {
+      "#src/*": ["./src/*"],
+      "#utils/*": ["./src/utils/*"],
+      "#logger/*": ["./src/utils/logger/*"],
+      "#ELA/*": ["./src/ensure-local-assets/*"],
+      "#ELA_Utils/*": ["./src/ensure-local-assets/utils/*"],
+      "#ELA_Handlers/*": ["./src/ensure-local-assets/handlers/*"]
+    },
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module

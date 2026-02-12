@@ -1,19 +1,23 @@
-import dictionariesManifest from "../../dictionaries.manifest.json" with {
-  type: "json",
-};
-import logger from "../utils/logger/console.js";
-import runSteps from "../utils/run-steps/index.js";
-import ELA_RunStepHandler from "./handlers/run-steps-handler.js";
-import logSummary from "./log-summary.js";
-import { MultiBar } from "./progress.js";
-import type { Manifest } from "./types.js";
-import { ELA_StepsCodes } from "./types.js";
+import ELA_RunStepHandler from "#ELA_Handlers/run-steps-handler.js";
+import logSummary from "#ELA_Utils/log-summary.js";
+import logger from "#logger/console.js";
+import getDictionariesManifest from "#utils/get-dictionaries-manifest.js";
+import { MultiBar } from "#utils/progress.js";
+import runSteps from "#utils/run-steps/index.js";
+import { ELA_StepsCodes, type Manifest } from "./types.js";
 
 const dataIsStep = (x: unknown): x is ELA_StepsCodes =>
   Object.values(ELA_StepsCodes).some((step) => step === x);
 
+// @todo change return status
+
 export default async function ensureLocalAssets(): Promise<void> {
   logger.info("Ensuring local assets' availability.\n");
+  const dictionariesManifest = getDictionariesManifest();
+  if (dictionariesManifest === null) {
+    logger.error("No dictionary manifest found");
+    return;
+  }
 
   const multiBar = new MultiBar();
   multiBar.start();
