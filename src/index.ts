@@ -6,9 +6,6 @@ import safeDeletion from "./utils/safe-deletion.js";
 
 /*
 @TODO
-- try to make utility functions and classes the least project dependant,
-  so they could be reusable if need be.
-
 - Actual parsing
   - kanjidic first
   - jmdic

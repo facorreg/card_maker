@@ -1,7 +1,7 @@
 import path from "node:path";
 import reporter from "../../utils/logger/reporter.js";
 import type { MultiBar, SingleBar } from "../progress.js";
-import { AssetErrorCodes, STEPS } from "../types.js";
+import { AssetErrorCodes, ELA_StepsCodes } from "../types.js";
 import type {
   OnErrorUnzip,
   OnGetUncompressedSizeErrorUnzip,
@@ -77,7 +77,7 @@ export default class UnzipHandlers {
     const logCode =
       err !== null
         ? { errCode: AssetErrorCodes.UNZIP_FILE_ERROR, error: err }
-        : { code: STEPS.UNCOMPRESS_INNER_FILE };
+        : { code: ELA_StepsCodes.UNCOMPRESS_INNER_FILE };
 
     await reporter({
       ...logCode,

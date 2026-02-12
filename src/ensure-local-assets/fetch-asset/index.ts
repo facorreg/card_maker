@@ -12,7 +12,9 @@ export default async function fetchAsset(
   const ntFetch = asyncNoThrow(fetch, new Error(AssetErrorCodes.FETCH_ERROR));
 
   const [fetchError, res] = await ntFetch(url, {
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(
+      parseInt(process.env.FETCH_TIMEOUT || "", 10) || 60_000,
+    ),
   });
 
   if (fetchError !== null || !res)

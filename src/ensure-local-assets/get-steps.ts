@@ -1,38 +1,32 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import type { AsyncNoThrow } from "../utils/no-throw.js";
 import asyncNoThrow from "../utils/no-throw.js";
+import type { Step } from "../utils/run-steps/types.js";
 import safeDeletion from "../utils/safe-deletion.js";
 import fetchAsset from "./fetch-asset/index.js";
 import FetchHandlers from "./handlers/fetch-handlers.js";
 import GzipHandlers from "./handlers/gunzip-handlers.js";
 import UnzipHandlers from "./handlers/unzip-handlers.js";
 import type { MultiBar } from "./progress.js";
-import { AssetErrorCodes, type Manifest, STEPS } from "./types.js";
+import { AssetErrorCodes, ELA_StepsCodes, type Manifest } from "./types.js";
 import gunzip from "./uncompress/gunzip/index.js";
 import unzip from "./uncompress/unzip/index.js";
 import { buildPath, getDictionariesDirPath } from "./utils/build-paths.js";
 import customAccess from "./utils/custom-access.js";
-export interface Step {
-  name: STEPS;
-  run: () => AsyncNoThrow<STEPS> | AsyncNoThrow<void>;
-  cleanup?: () => AsyncNoThrow<void>;
-  next?: STEPS;
-}
 
 export default function getSteps(
   manifest: Manifest,
   multiBar: MultiBar,
-): Step[] {
+): Step<ELA_StepsCodes>[] {
   const isFolder = manifest.outputType === "folder";
   const isGzip = manifest.inputType === "gz";
-  const outputFilePath = buildPath(manifest.name, manifest.outputType);
-  const inputFilePath = buildPath(manifest.name, manifest.inputType);
+  const outputPath = buildPath(manifest.name, manifest.outputType);
+  const inputPath = buildPath(manifest.name, manifest.inputType);
   const dictionariesDirPath = getDictionariesDirPath();
 
   return [
     {
-      name: STEPS.NOT_STARTED,
+      name: ELA_StepsCodes.NOT_STARTED,
       async run() {
         const ntMkdir = asyncNoThrow(mkdir);
         const [mkErr] = await ntMkdir(dictionariesDirPath, {
@@ -40,84 +34,76 @@ export default function getSteps(
         });
         if (mkErr)
           return [new Error(AssetErrorCodes.MKDIR_ERROR, { cause: mkErr })];
-        return customAccess(outputFilePath, manifest.outputType);
+        return customAccess(outputPath, manifest.outputType);
       },
     },
     {
-      name: STEPS.CHECK_COMPRESSED_ARCHIVE,
+      name: ELA_StepsCodes.CHECK_COMPRESSED_ARCHIVE,
       async run() {
-        return customAccess(inputFilePath, manifest.inputType);
+        return customAccess(inputPath, manifest.inputType);
       },
     },
     {
-      name: STEPS.DOWNLOAD,
+      name: ELA_StepsCodes.DOWNLOAD,
       async run() {
         const handlers = new FetchHandlers(
           manifest.url,
-          inputFilePath,
-          outputFilePath,
+          inputPath,
+          outputPath,
           multiBar,
           manifest.roughSize,
         );
         const ret = await fetchAsset(
           manifest.url,
-          inputFilePath,
+          inputPath,
           handlers.methodsToOpts(),
         );
 
         return ret;
       },
       async cleanup() {
-        return safeDeletion(inputFilePath, false);
+        return safeDeletion(inputPath, false);
       },
-      next: STEPS.UNCOMPRESS,
+      next: ELA_StepsCodes.UNCOMPRESS,
     },
     {
-      name: STEPS.UNCOMPRESS,
+      name: ELA_StepsCodes.UNCOMPRESS,
       async run() {
         const inputFileName = `${manifest.name}.${manifest.inputType}`;
 
         if (isGzip) {
           const handlers = new GzipHandlers(
             inputFileName,
-            outputFilePath,
+            outputPath,
             multiBar,
           );
 
-          return gunzip(
-            inputFilePath,
-            outputFilePath,
-            handlers.methodsToOpts(),
-          );
+          return gunzip(inputPath, outputPath, handlers.methodsToOpts());
         }
 
-        const handlers = new UnzipHandlers(
-          inputFileName,
-          outputFilePath,
-          multiBar,
-        );
+        const handlers = new UnzipHandlers(inputFileName, outputPath, multiBar);
 
         return unzip(
-          inputFilePath,
-          path.dirname(outputFilePath),
+          inputPath,
+          path.dirname(outputPath),
           handlers.methodsToOpts(),
         );
       },
       async cleanup() {
-        return safeDeletion(outputFilePath, isFolder);
+        return safeDeletion(outputPath, isFolder);
       },
-      next: STEPS.CLEANUP,
+      next: ELA_StepsCodes.CLEANUP,
     },
     {
       // success cleanup
-      name: STEPS.CLEANUP,
+      name: ELA_StepsCodes.CLEANUP,
       async run() {
-        return safeDeletion(inputFilePath, false);
+        return safeDeletion(inputPath, false);
       },
-      next: STEPS.NO_ACTION,
+      next: ELA_StepsCodes.NO_ACTION,
     },
     {
-      name: STEPS.NO_ACTION,
+      name: ELA_StepsCodes.NO_ACTION,
       async run() {
         return [null];
       },

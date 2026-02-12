@@ -2,50 +2,15 @@ import dictionariesManifest from "../../dictionaries.manifest.json" with {
   type: "json",
 };
 import logger from "../utils/logger/console.js";
-import reporter from "../utils/logger/reporter.js";
-import getSteps, { type Step } from "./get-steps.js";
+import runSteps from "../utils/run-steps/index.js";
+import ELA_RunStepHandler from "./handlers/run-steps-handler.js";
 import logSummary from "./log-summary.js";
 import { MultiBar } from "./progress.js";
 import type { Manifest } from "./types.js";
-import { STEPS } from "./types.js";
+import { ELA_StepsCodes } from "./types.js";
 
-async function runSteps(manifest: Manifest, multiBar: MultiBar) {
-  const steps: Step[] = getSteps(manifest, multiBar);
-  let stepName: STEPS = STEPS.NOT_STARTED;
-  const fileName = `${manifest.name}.${manifest.inputType}`;
-
-  for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
-    const step = steps[stepIndex];
-
-    if (!step) break; // should not happen
-    if (stepName !== step.name) continue;
-
-    if (step.name !== STEPS.NOT_STARTED && step.name !== STEPS.NO_ACTION) {
-      await reporter({
-        code: step.name,
-        file: fileName,
-      });
-    }
-
-    const [err, data] = await step.run();
-
-    if (err) {
-      let index = steps.findIndex(({ name }) => stepName === name);
-      while (index >= 0) {
-        await steps[index]?.cleanup?.();
-        index--;
-      }
-      await reporter({
-        errCode: err.message,
-        file: fileName,
-        error: err,
-      });
-    }
-
-    const dataIsStep = Object.values(STEPS).some((step) => step === data);
-    stepName = dataIsStep ? (data as STEPS) : (step.next ?? STEPS.NO_ACTION);
-  }
-}
+const dataIsStep = (x: unknown): x is ELA_StepsCodes =>
+  Object.values(ELA_StepsCodes).some((step) => step === x);
 
 export default async function ensureLocalAssets(): Promise<void> {
   logger.info("Ensuring local assets' availability.\n");
@@ -53,10 +18,19 @@ export default async function ensureLocalAssets(): Promise<void> {
   const multiBar = new MultiBar();
   multiBar.start();
 
+  const handlers = new ELA_RunStepHandler(multiBar);
+
   await Promise.all(
-    dictionariesManifest.map((manifest) =>
-      runSteps(manifest as Manifest, multiBar),
-    ),
+    dictionariesManifest.map((manifest) => {
+      handlers.init(manifest as Manifest);
+
+      return runSteps(
+        handlers.steps,
+        ELA_StepsCodes.NO_ACTION,
+        dataIsStep,
+        handlers.methodsToOpts(),
+      );
+    }),
   );
 
   multiBar.stop();

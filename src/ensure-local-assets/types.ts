@@ -11,7 +11,7 @@ export interface Manifest {
   outputType: DecompressedTypes;
 }
 
-export enum STEPS {
+export enum ELA_StepsCodes {
   NOT_STARTED = "NOT_STARTED",
   DOWNLOAD = "DOWNLOAD",
   CHECK_COMPRESSED_ARCHIVE = "CHECK_COMPRESSED_ARCHIVE",
@@ -52,7 +52,7 @@ export enum AssetErrorCodes {
   LOG_R_STREAM_ERROR = "LOG_R_STREAM_ERROR",
 }
 
-export type AssetState = STEPS | AssetErrorCodes;
+export type AssetState = ELA_StepsCodes | AssetErrorCodes;
 
 export interface StepReturn {
   state: AssetState;

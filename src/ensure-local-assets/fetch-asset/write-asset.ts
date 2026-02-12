@@ -30,10 +30,7 @@ export default async function writeAsset(
   await opts?.onStart?.(res);
   const file = fs.createWriteStream(outputPath);
 
-  const ntIterateChunks = asyncNoThrow<NodeJS.ErrnoException>(
-    iterateChunks,
-    new Error(AssetErrorCodes.FETCH_W_STREAM_ERROR),
-  );
+  const ntIterateChunks = asyncNoThrow<NodeJS.ErrnoException>(iterateChunks);
 
   const [err] = await ntIterateChunks(res, file, opts?.onChunk);
 
@@ -41,7 +38,6 @@ export default async function writeAsset(
     file.end();
     await once(file, "finish");
     await opts?.onFinish?.();
-    return [null];
   } else {
     file.destroy(err);
     await safeDeletion(outputPath, false);
@@ -51,8 +47,8 @@ export default async function writeAsset(
   await opts?.onEnd?.();
 
   return [
-    err?.code
-      ? (err ?? null)
+    err === null
+      ? null
       : new Error(AssetErrorCodes.FETCH_W_STREAM_ERROR, { cause: err }),
   ];
 }

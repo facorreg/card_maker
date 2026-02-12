@@ -43,6 +43,7 @@ export default class Unzip {
   constructor(inputPath: string, outputPath: string, opts?: UnzipOptions) {
     this.outputPath = outputPath;
     this.inputPath = inputPath;
+
     if (!opts) return;
 
     this.onGetUncompressedSizeError = opts.onGetUncompressedSizeError;

@@ -7,7 +7,7 @@ import log from "../utils/logger/console.js";
 import reporter from "../utils/logger/reporter.js";
 import type { AsyncNoThrow } from "../utils/no-throw.js";
 import { LOG_OUTPUT } from "./constants.js";
-import { type AssetErrorCodes, STEPS } from "./types.js";
+import { type AssetErrorCodes, ELA_StepsCodes } from "./types.js";
 
 enum ReadByDelimiterErrors {
   RBD_NO_DELIMITER_PROVIDED = "RBD_NO_DELIMITER_PROVIDED",
@@ -73,16 +73,16 @@ async function logSummary() {
   const readLogsCallback = (logStr: string) => {
     const log = JSON.parse(logStr);
     const errCode = extractMainError(log.errCode as AssetErrorCodes);
-    const anyCode = (log.code as STEPS) ?? errCode;
+    const anyCode = (log.code as ELA_StepsCodes) ?? errCode;
 
-    switch (anyCode as STEPS | string) {
-      case STEPS.DOWNLOAD:
+    switch (anyCode as ELA_StepsCodes | string) {
+      case ELA_StepsCodes.DOWNLOAD:
         downloadSuccesses += 1;
         break;
-      case STEPS.UNCOMPRESS:
+      case ELA_StepsCodes.UNCOMPRESS:
         uncompressSuccesses += 1;
         break;
-      case STEPS.UNCOMPRESS_INNER_FILE:
+      case ELA_StepsCodes.UNCOMPRESS_INNER_FILE:
         uncompressSuccesses += 1;
         break;
       case "FETCH":

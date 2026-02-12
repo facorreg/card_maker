@@ -5,7 +5,7 @@ import {
 } from "../../ensure-local-assets/constants.js";
 import {
   AssetErrorCodes,
-  type STEPS,
+  type ELA_StepsCodes,
 } from "../../ensure-local-assets/types.js";
 import asyncNoThrow, { type AsyncNoThrow } from "../no-throw.js";
 
@@ -15,7 +15,7 @@ const errorReporter = {
 };
 
 interface DataFormatterOpts {
-  code?: STEPS;
+  code?: ELA_StepsCodes;
   errCode?: AssetErrorCodes | string;
   file: string;
   error?: Error;

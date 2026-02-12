@@ -2,7 +2,7 @@ import { access, constants } from "node:fs/promises";
 import type { AsyncNoThrow } from "../../utils/no-throw.js";
 import asyncNoThrow from "../../utils/no-throw.js";
 import type { DataTypes } from "../types.js";
-import { AssetErrorCodes, STEPS } from "../types.js";
+import { AssetErrorCodes, ELA_StepsCodes } from "../types.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
@@ -26,7 +26,7 @@ async function customAccess(
 export default async function customAccessHandler(
   path: string,
   type: DataTypes,
-): AsyncNoThrow<STEPS> {
+): AsyncNoThrow<ELA_StepsCodes> {
   const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
   const [err] = await customAccess(path, accessFlag);
 
@@ -34,20 +34,20 @@ export default async function customAccessHandler(
     if (err.message !== AssetErrorCodes.FILE_STATE_MISSING) return [err];
 
     return type === "xml" || type === "folder"
-      ? [null, STEPS.CHECK_COMPRESSED_ARCHIVE]
-      : [null, STEPS.DOWNLOAD];
+      ? [null, ELA_StepsCodes.CHECK_COMPRESSED_ARCHIVE]
+      : [null, ELA_StepsCodes.DOWNLOAD];
   }
 
   switch (type) {
     case "xml":
-      return [null, STEPS.PARSE_FILE];
+      return [null, ELA_StepsCodes.PARSE_FILE];
     case "gz":
-      return [null, STEPS.UNCOMPRESS];
+      return [null, ELA_StepsCodes.UNCOMPRESS];
     case "zip":
-      return [null, STEPS.UNCOMPRESS];
+      return [null, ELA_StepsCodes.UNCOMPRESS];
     case "folder":
-      return [null, STEPS.NO_ACTION];
+      return [null, ELA_StepsCodes.NO_ACTION];
     default:
-      return [null, STEPS.NO_ACTION];
+      return [null, ELA_StepsCodes.NO_ACTION];
   }
 }
