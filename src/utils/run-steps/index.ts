@@ -4,7 +4,7 @@ import type { RunStepsOpts } from "./types.js";
 export default async function runSteps<C>(
   steps: Step<C>[],
   noAction: C,
-  isDataStep: (x: unknown) => x is C,
+  dataIsStepCode: (x: unknown) => x is C,
   opts: RunStepsOpts<C>,
 ) {
   // !steps.length would not work with steps[0].name
@@ -30,7 +30,7 @@ export default async function runSteps<C>(
 
     await opts?.onSuccess?.(step);
 
-    const dataIsStep = isDataStep(data);
+    const dataIsStep = dataIsStepCode(data);
 
     stepName = dataIsStep ? data : (step.next ?? noAction);
   }

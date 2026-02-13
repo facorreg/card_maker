@@ -6,3 +6,27 @@ export const LOG_OUTPUT = path.join(
 );
 
 export const LOG_FOLDER_PATH = path.dirname(LOG_OUTPUT);
+
+// MultiBar
+
+type ELA_States = "download" | "uncompress";
+type ELA_Status = "start" | "success" | "error";
+
+export type ELA_StatusStates = {
+  [S in ELA_States]: {
+    [C in ELA_Status]: string;
+  };
+};
+
+export const ELA_STATUS_STATES: ELA_StatusStates = {
+  download: {
+    start: "DOWNLOADING",
+    success: "DOWNLOADED",
+    error: "DOWNLOAD FAILED",
+  },
+  uncompress: {
+    start: "UNCOMPRESSING",
+    success: "UNCOMPRESSED",
+    error: "DECOMPRESSION FAILED",
+  },
+};

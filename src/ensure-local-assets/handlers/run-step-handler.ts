@@ -2,15 +2,17 @@ import getSteps from "#ELA/get-steps.js";
 import { ELA_StepsCodes } from "#ELA/types.js";
 import logger from "#logger/console.js";
 import reporter from "#logger/reporter.js";
+import type { PLA_STATUS_STATES } from "#src/parse-local-assets/constants.js";
 import type { Manifest } from "#src/types.js";
 import type { MultiBar } from "#utils/progress.js";
 import type { RunStepsOpts, Step } from "#utils/run-steps/types.js";
+
 export default class ELA_RunStepHandler {
-  multiBar: MultiBar;
+  multiBar: MultiBar<typeof PLA_STATUS_STATES>;
   fileName!: string;
   steps!: Step<ELA_StepsCodes>[];
 
-  constructor(multiBar: MultiBar) {
+  constructor(multiBar: MultiBar<typeof PLA_STATUS_STATES>) {
     this.multiBar = multiBar;
   }
 

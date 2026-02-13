@@ -40,8 +40,3 @@ export enum AssetErrorCodes {
 }
 
 export type AssetState = ELA_StepsCodes | AssetErrorCodes;
-
-export interface StepReturn {
-  state: AssetState;
-  cause?: Error;
-}

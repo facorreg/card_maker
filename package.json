@@ -13,8 +13,10 @@
 		"#ELA/*": "./dist/ensure-local-assets/*",
 		"#ELA_Utils/*": "./dist/ensure-local-assets/utils/*",
 		"#ELA_Handlers/*": "./dist/ensure-local-assets/handlers/*",
+		"#PLA": "./dist/parse-local-assets/*",
 		"#utils/*": "./dist/utils/*",
-		"#logger/*": "./dist/utils/logger/*"
+		"#logger/*": "./dist/utils/logger/*",
+		"#src/*": "./dist/*"
 	},
 	"keywords": [],
 	"author": "",

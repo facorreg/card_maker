@@ -14,6 +14,7 @@ import type { MultiBar } from "#utils/progress.js";
 import type { Step } from "#utils/run-steps/types.js";
 import safeDeletion from "#utils/safe-deletion.js";
 import { AssetErrorCodes, ELA_StepsCodes } from "./types.js";
+
 export default function getSteps(
   manifest: Manifest,
   multiBar: MultiBar,

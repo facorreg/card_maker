@@ -4,14 +4,16 @@
 		"name": "jmdict",
 		"url": "http://ftp.edrdg.org/pub/Nihongo/JMdict.gz",
 		"inputType": "gz",
-		"outputType": "xml"
+		"outputType": "xml",
+		"parseType": "JMDICT"
 	},
 	{
 		"lang": "jp",
 		"name": "kanjidic",
 		"url": "https://www.edrdg.org/kanjidic/kanjidic2.xml.gz",
 		"inputType": "gz",
-		"outputType": "xml"
+		"outputType": "xml",
+		"parseType": "KANJIDIC"
 	},
 	{
 		"lang": "jp",
@@ -26,6 +28,7 @@
 		"url": "https://repository.ninjal.ac.jp/record/3234/files/BCCWJ_frequencylist_suw_ver1_0.zip",
 		"inputType": "zip",
 		"outputType": "tsv",
-		"roughSize": 8000000
+		"roughSize": 8000000,
+		"parseType": "BCCWJ"
 	}
 ]

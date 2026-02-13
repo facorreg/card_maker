@@ -12,7 +12,8 @@
       "#logger/*": ["./src/utils/logger/*"],
       "#ELA/*": ["./src/ensure-local-assets/*"],
       "#ELA_Utils/*": ["./src/ensure-local-assets/utils/*"],
-      "#ELA_Handlers/*": ["./src/ensure-local-assets/handlers/*"]
+      "#ELA_Handlers/*": ["./src/ensure-local-assets/handlers/*"],
+      "#PLA/*": ["./src/parse-local-assets/*"]
     },
 
     // Environment Settings
