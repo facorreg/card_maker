@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Manifest } from "#ELA/types.js";
+import type { Manifest } from "#src/types.js";
 
 export default function getDictionariesManifest(): Manifest[] | null {
   const root = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));

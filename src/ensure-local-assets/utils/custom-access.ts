@@ -1,7 +1,6 @@
 import { access, constants } from "node:fs/promises";
-import type { AsyncNoThrow } from "../../utils/no-throw.js";
-import asyncNoThrow from "../../utils/no-throw.js";
-import type { DataTypes } from "../types.js";
+import type { DataTypes } from "#src/types.js";
+import asyncNoThrow, { type AsyncNoThrow } from "#utils/no-throw.js";
 import { AssetErrorCodes, ELA_StepsCodes } from "../types.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];

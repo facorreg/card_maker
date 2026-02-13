@@ -8,12 +8,12 @@ import { buildPath, getDictionariesDirPath } from "#ELA_Utils/build-paths.js";
 import customAccess from "#ELA_Utils/custom-access.js";
 import gunzip from "#ELA_Utils/uncompress/gunzip/index.js";
 import unzip from "#ELA_Utils/uncompress/unzip/index.js";
+import type { Manifest } from "#src/types.js";
 import asyncNoThrow from "#utils/no-throw.js";
 import type { MultiBar } from "#utils/progress.js";
 import type { Step } from "#utils/run-steps/types.js";
 import safeDeletion from "#utils/safe-deletion.js";
-import { AssetErrorCodes, ELA_StepsCodes, type Manifest } from "./types.js";
-
+import { AssetErrorCodes, ELA_StepsCodes } from "./types.js";
 export default function getSteps(
   manifest: Manifest,
   multiBar: MultiBar,
