@@ -3,7 +3,7 @@
 		"lang": "jp",
 		"name": "jmdict",
 		"url": "http://ftp.edrdg.org/pub/Nihongo/JMdict.gz",
-		"inputType": "gz",
+		"compressedType": "gz",
 		"outputType": "xml",
 		"parseType": "JMDICT"
 	},
@@ -11,7 +11,7 @@
 		"lang": "jp",
 		"name": "kanjidic",
 		"url": "https://www.edrdg.org/kanjidic/kanjidic2.xml.gz",
-		"inputType": "gz",
+		"compressedType": "gz",
 		"outputType": "xml",
 		"parseType": "KANJIDIC"
 	},
@@ -19,16 +19,23 @@
 		"lang": "jp",
 		"name": "kanjivg",
 		"url": "https://github.com/KanjiVG/kanjivg/releases/download/r20250816/kanjivg-20250816-all.zip",
-		"inputType": "zip",
+		"compressedType": "zip",
 		"outputType": "folder"
 	},
 	{
 		"lang": "jp",
 		"name": "bccwj",
 		"url": "https://repository.ninjal.ac.jp/record/3234/files/BCCWJ_frequencylist_suw_ver1_0.zip",
-		"inputType": "zip",
+		"compressedType": "zip",
 		"outputType": "tsv",
 		"roughSize": 8000000,
 		"parseType": "BCCWJ"
+	},
+	{
+		"lang": "jp",
+		"name": "accents",
+		"url": "https://github.com/mifunetoshiro/kanjium/raw/refs/heads/master/data/source_files/raw/accents.txt",
+		"outputType": "txt",
+		"parseType": "ACCENTS"
 	}
 ]

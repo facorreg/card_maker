@@ -1,5 +1,5 @@
 import { access, constants } from "node:fs/promises";
-import type { DataTypes } from "#src/types.js";
+import type { DataTypes, OutputTypes } from "#src/types.js";
 import asyncNoThrow, { type AsyncNoThrow } from "#utils/no-throw.js";
 import { AssetErrorCodes, ELA_StepsCodes } from "../types.js";
 
@@ -22,9 +22,15 @@ async function customAccess(
   return [new Error(errCode, { cause: err })];
 }
 
+function isOutputType(x: DataTypes): x is OutputTypes {
+  const outputTypes: OutputTypes[] = ["xml", "tsv", "txt", "folder"];
+  return (outputTypes as string[]).includes(x);
+}
+
 export default async function customAccessHandler(
   path: string,
   type: DataTypes,
+  hasCompressedArchive = false,
 ): AsyncNoThrow<ELA_StepsCodes> {
   const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
   const [err] = await customAccess(path, accessFlag);
@@ -32,20 +38,22 @@ export default async function customAccessHandler(
   if (err !== null) {
     if (err.message !== AssetErrorCodes.FILE_STATE_MISSING) return [err];
 
-    return type === "xml" || type === "folder"
+    const typeIsExport = isOutputType(type);
+
+    if (typeIsExport && !hasCompressedArchive) {
+      return [null, ELA_StepsCodes.DOWNLOAD];
+    }
+
+    return isOutputType(type)
       ? [null, ELA_StepsCodes.CHECK_COMPRESSED_ARCHIVE]
       : [null, ELA_StepsCodes.DOWNLOAD];
   }
 
   switch (type) {
-    case "xml":
-      return [null, ELA_StepsCodes.PARSE_FILE];
     case "gz":
-      return [null, ELA_StepsCodes.UNCOMPRESS];
+      return [null, ELA_StepsCodes.DECOMPRESS];
     case "zip":
-      return [null, ELA_StepsCodes.UNCOMPRESS];
-    case "folder":
-      return [null, ELA_StepsCodes.NO_ACTION];
+      return [null, ELA_StepsCodes.DECOMPRESS];
     default:
       return [null, ELA_StepsCodes.NO_ACTION];
   }

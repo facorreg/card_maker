@@ -9,12 +9,12 @@ import asyncNoThrow, {
   type NoThrow,
 } from "#utils/no-throw.js";
 import type {
+  OnDecompressUnzip,
   OnErrorUnzip,
-  OnGetUncompressedSizeErrorUnzip,
+  OnGetDecompressedSizeErrorUnzip,
   OnStartUnzip,
   OnSuccessUnzip,
   OnTransformUnzip,
-  OnUncompressUnzip,
   UnzipOptions,
 } from "./types.js";
 
@@ -28,45 +28,45 @@ type IterateEntriesCb = (
 ) => AsyncNoThrow<void> | NoThrow<void>;
 
 export default class Unzip {
-  inputPath: string;
+  compressedPath: string;
   outputPath!: string;
-  uncompressedSize: number = 0;
+  decompressedSize: number = 0;
 
-  onGetUncompressedSizeError?: OnGetUncompressedSizeErrorUnzip;
+  onGetDecompressedSizeError?: OnGetDecompressedSizeErrorUnzip;
   onStart?: OnStartUnzip;
   onTransform?: OnTransformUnzip;
-  onUncompress?: OnUncompressUnzip;
+  onDecompress?: OnDecompressUnzip;
   onSuccess?: OnSuccessUnzip;
   onError?: OnErrorUnzip;
   renameTo: string = "";
 
-  constructor(inputPath: string, outputPath: string, opts?: UnzipOptions) {
+  constructor(compressedPath: string, outputPath: string, opts?: UnzipOptions) {
     this.outputPath = outputPath;
-    this.inputPath = inputPath;
+    this.compressedPath = compressedPath;
 
     if (!opts) return;
 
-    this.onGetUncompressedSizeError = opts.onGetUncompressedSizeError;
+    this.onGetDecompressedSizeError = opts.onGetDecompressedSizeError;
     this.onStart = opts.onStart;
     this.onTransform = opts.onTransform;
-    this.onUncompress = opts.onUncompress;
+    this.onDecompress = opts.onDecompress;
     this.onSuccess = opts.onSuccess;
     this.onError = opts.onError;
     this.renameTo = opts.renameTo || "";
   }
 
   async start() {
-    const [err] = await this.getUncompressedSize();
-    if (err !== null) await this?.onGetUncompressedSizeError?.(err);
-    this.onStart?.(this.uncompressedSize);
+    const [err] = await this.getDecompressedSize();
+    if (err !== null) await this?.onGetDecompressedSizeError?.(err);
+    this.onStart?.(this.decompressedSize);
   }
 
   iterateEntries(
     callback: IterateEntriesCb,
-    type: "uncompress" | "traverse",
+    type: "decompress" | "traverse",
   ): AsyncNoThrow<void> {
     return new Promise((resolve) => {
-      yauzl.open(this.inputPath, { lazyEntries: true }, (err, zipfile) => {
+      yauzl.open(this.compressedPath, { lazyEntries: true }, (err, zipfile) => {
         if (err)
           return resolve([
             new Error(AssetErrorCodes.UNZIP_OPEN_ERROR, { cause: err }),
@@ -80,8 +80,8 @@ export default class Unzip {
             const promise = callback({ entry, zipfile });
             const [e] = promise instanceof Promise ? await promise : promise;
 
-            if (type === "uncompress")
-              this?.onUncompress?.(entry, this.outputPath, e);
+            if (type === "decompress")
+              this?.onDecompress?.(entry, this.outputPath, e);
           }
 
           zipfile.readEntry();
@@ -123,7 +123,7 @@ export default class Unzip {
     return `${this.renameTo}${ext}`;
   }
 
-  async uncompressEntryCallback({
+  async decompressEntryCallback({
     entry,
     zipfile,
   }: IterateEntriesCbOptions): AsyncNoThrow<void> {
@@ -169,24 +169,24 @@ export default class Unzip {
     });
   }
 
-  uncompressEntries() {
+  decompressEntries() {
     return this.iterateEntries(
-      (opts) => this.uncompressEntryCallback(opts),
-      "uncompress",
+      (opts) => this.decompressEntryCallback(opts),
+      "decompress",
     );
   }
 
-  getUncompressedSizeCallback({
+  getDecompressedSizeCallback({
     entry,
   }: IterateEntriesCbOptions): NoThrow<void> {
-    this.uncompressedSize += entry.uncompressedSize;
+    this.decompressedSize += entry.uncompressedSize;
     return [null];
   }
 
-  async getUncompressedSize(): AsyncNoThrow<void> {
-    if (!this.uncompressedSize) {
+  async getDecompressedSize(): AsyncNoThrow<void> {
+    if (!this.decompressedSize) {
       const ret = await this.iterateEntries(
-        (opts) => this.getUncompressedSizeCallback(opts),
+        (opts) => this.getDecompressedSizeCallback(opts),
         "traverse",
       );
 

@@ -1,6 +1,6 @@
-export type DecompressedTypes = "xml" | "folder";
-export type CompressionTypes = "zip" | "gz";
-export type DataTypes = DecompressedTypes | CompressionTypes;
+export type OutputTypes = "xml" | "tsv" | "txt" | "folder";
+export type CompressedTypes = "zip" | "gz";
+export type DataTypes = OutputTypes | CompressedTypes;
 
 export type ParseType = "KANJIDIC" | "JMDICT" | "BCCWJ";
 export interface Manifest {
@@ -8,7 +8,7 @@ export interface Manifest {
   name: string;
   url: string;
   roughSize?: number;
-  inputType: CompressionTypes;
-  outputType: DecompressedTypes;
+  compressedType?: CompressedTypes;
+  outputType: OutputTypes;
   parseType?: ParseType;
 }

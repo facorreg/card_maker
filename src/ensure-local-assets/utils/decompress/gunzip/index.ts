@@ -19,7 +19,7 @@ export interface GzipOptions {
   onError?: OnErrorGzip;
 }
 
-async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
+async function gzipDecompressedSize(path: string): AsyncNoThrow<number> {
   const fh = await fs.promises.open(path, "r");
   try {
     const stat = await fh.stat();
@@ -35,17 +35,18 @@ async function gzipUncompressedSize(path: string): AsyncNoThrow<number> {
 }
 
 export default async function gunzip(
-  inputPath: string,
+  compressedPath: string,
   outputPath: string,
   opts?: GzipOptions,
 ): AsyncNoThrow<void> {
-  const [errGzSize, uncompressedSize] = await gzipUncompressedSize(inputPath);
+  const [errGzSize, decompressedSize] =
+    await gzipDecompressedSize(compressedPath);
   if (errGzSize !== null)
     return [
       new Error(AssetErrorCodes.GZIP_INVALID_FORMAT, { cause: errGzSize }),
     ]; // invalid gzip format
 
-  await opts?.onStart?.(uncompressedSize || 0);
+  await opts?.onStart?.(decompressedSize || 0);
 
   const transform = new Transform({
     transform: async (chunk: Buffer, _, callback) => {
@@ -56,7 +57,7 @@ export default async function gunzip(
 
   try {
     await pipeline(
-      fs.createReadStream(inputPath),
+      fs.createReadStream(compressedPath),
       createGunzip(),
       transform,
       fs.createWriteStream(outputPath),

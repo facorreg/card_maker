@@ -1,15 +1,15 @@
 import path from "node:path";
 import { AssetErrorCodes, ELA_StepsCodes } from "#ELA/types.js";
-import extractFileName from "#ELA_Utils/extract-file-name.js";
 import type {
+  OnDecompressUnzip,
   OnErrorUnzip,
-  OnGetUncompressedSizeErrorUnzip,
+  OnGetDecompressedSizeErrorUnzip,
   OnStartUnzip,
   OnSuccessUnzip,
   OnTransformUnzip,
-  OnUncompressUnzip,
   UnzipOptions,
-} from "#ELA_Utils/uncompress/unzip/types.js";
+} from "#ELA_Utils/decompress/unzip/types.js";
+import extractFileName from "#ELA_Utils/extract-file-name.js";
 import reporter from "#logger/reporter.js";
 import type { MultiBar, SingleBar } from "#utils/progress.js";
 
@@ -18,27 +18,27 @@ export default class UnzipHandlers {
   multiBar: MultiBar;
   outputFilePath: string;
   outputFileName: string;
-  inputFileName: string;
-  uncompressedSize = 0;
+  compressedFileName: string;
+  decompressedSize = 0;
 
   constructor(
-    inputFileName: string,
+    compressedFileName: string,
     outputFilePath: string,
     multiBar: MultiBar,
   ) {
     this.multiBar = multiBar;
-    this.inputFileName = inputFileName;
+    this.compressedFileName = compressedFileName;
     this.outputFilePath = outputFilePath;
     this.outputFileName = extractFileName(outputFilePath);
   }
 
   resetFileName() {
-    this.pb?.update(this.uncompressedSize, { fileName: this.outputFileName });
+    this.pb?.update(this.decompressedSize, { fileName: this.outputFileName });
   }
 
-  onGetUncompressedSizeError: OnGetUncompressedSizeErrorUnzip = async (err) => {
+  onGetDecompressedSizeError: OnGetDecompressedSizeErrorUnzip = async (err) => {
     await reporter({
-      errCode: AssetErrorCodes.UNZIP_UNCOMPRESSED_SIZE_ERROR,
+      errCode: AssetErrorCodes.UNZIP_DECOMPRESSED_SIZE_ERROR,
       file: this.outputFileName,
       error: err,
     });
@@ -50,7 +50,7 @@ export default class UnzipHandlers {
 
     const [errPbCreate, progress] = this.multiBar.create(
       this.outputFileName,
-      "uncompress",
+      "decompress",
       size,
     );
 
@@ -60,7 +60,7 @@ export default class UnzipHandlers {
     if (errPbCreate) {
       await reporter({
         errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
-        file: this.inputFileName,
+        file: this.compressedFileName,
         error: errPbCreate,
       });
     }
@@ -68,16 +68,16 @@ export default class UnzipHandlers {
   };
 
   onTransform: OnTransformUnzip = (chunk, entry) => {
-    this.uncompressedSize += chunk.length;
-    this.pb?.update(this.uncompressedSize, { fileName: entry.fileName });
+    this.decompressedSize += chunk.length;
+    this.pb?.update(this.decompressedSize, { fileName: entry.fileName });
     return [null];
   };
 
-  onUncompress: OnUncompressUnzip = async (entry, outputPath, err) => {
+  onDecompress: OnDecompressUnzip = async (entry, outputPath, err) => {
     const logCode =
       err !== null
         ? { errCode: AssetErrorCodes.UNZIP_FILE_ERROR, error: err }
-        : { code: ELA_StepsCodes.UNCOMPRESS_INNER_FILE };
+        : { code: ELA_StepsCodes.DECOMPRESS_INNER_FILE };
 
     await reporter({
       ...logCode,
@@ -99,12 +99,12 @@ export default class UnzipHandlers {
   };
 
   methodsToOpts = (): UnzipOptions => ({
-    onGetUncompressedSizeError: this.onGetUncompressedSizeError,
+    onGetDecompressedSizeError: this.onGetDecompressedSizeError,
     onStart: this.onStart,
     onTransform: this.onTransform,
-    onUncompress: this.onUncompress,
+    onDecompress: this.onDecompress,
     onError: this.onError,
     onSuccess: this.onSuccess,
-    renameTo: path.parse(this.inputFileName).name,
+    renameTo: path.parse(this.compressedFileName).name,
   });
 }

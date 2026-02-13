@@ -52,8 +52,8 @@ async function readByDelimiter(
 async function logSummary() {
   let downloadSuccesses = 0;
   let downloadErrors = 0;
-  let uncompressSuccesses = 0;
-  let uncompressErrors = 0;
+  let decompressSuccesses = 0;
+  let decompressErrors = 0;
 
   const extractMainError = (errCode?: AssetErrorCodes) => {
     if (!errCode) return;
@@ -79,17 +79,17 @@ async function logSummary() {
       case ELA_StepsCodes.DOWNLOAD:
         downloadSuccesses += 1;
         break;
-      case ELA_StepsCodes.UNCOMPRESS:
-        uncompressSuccesses += 1;
+      case ELA_StepsCodes.DECOMPRESS:
+        decompressSuccesses += 1;
         break;
-      case ELA_StepsCodes.UNCOMPRESS_INNER_FILE:
-        uncompressSuccesses += 1;
+      case ELA_StepsCodes.DECOMPRESS_INNER_FILE:
+        decompressSuccesses += 1;
         break;
       case "FETCH":
         downloadErrors += 1;
         break;
       case "UNZIP":
-        uncompressErrors += 1;
+        decompressErrors += 1;
         break;
       default:
         break;
@@ -104,7 +104,7 @@ async function logSummary() {
     `Downloads => completed: ${green(downloadSuccesses)} | failed: ${red(downloadErrors)}`,
   );
   log.info(
-    `Extractions => completed: ${green(uncompressSuccesses)} | failed: ${red(uncompressErrors)}`,
+    `Extractions => completed: ${green(decompressSuccesses)} | failed: ${red(decompressErrors)}`,
   );
 
   if (err)

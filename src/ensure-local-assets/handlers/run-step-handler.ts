@@ -18,7 +18,7 @@ export default class ELA_RunStepHandler {
 
   async init(manifest: Manifest) {
     this.steps = getSteps(manifest, this.multiBar);
-    this.fileName = `${manifest.name}.${manifest.inputType}`;
+    this.fileName = `${manifest.name}.${manifest.compressedType}`;
   }
 
   onNoSteps() {

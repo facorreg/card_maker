@@ -35,20 +35,20 @@ export default class FetchHandlers {
   pb: SingleBar | undefined;
   multiBar!: MultiBar;
   downloaded = 0;
-  inputFilePath!: string;
+  compressedFilePath!: string;
   outputFilePath!: string;
   url: string;
   roughSize: number;
 
   constructor(
     url: string,
-    inputFilePath: string,
+    compressedFilePath: string,
     outputFilePath: string,
     multiBar: MultiBar,
     roughSize?: number,
   ) {
     this.url = url;
-    this.inputFilePath = inputFilePath;
+    this.compressedFilePath = compressedFilePath;
     this.outputFilePath = outputFilePath;
     this.multiBar = multiBar;
     this.roughSize = roughSize || 0;
@@ -63,7 +63,7 @@ export default class FetchHandlers {
       this.getContentLengthFromHeaders(res) || this.roughSize;
 
     this.pb = await createPbHandler(
-      extractFileName(this.inputFilePath),
+      extractFileName(this.compressedFilePath || this.outputFilePath),
       contentLength,
       this.multiBar,
     );
