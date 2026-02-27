@@ -1,60 +1,104 @@
 import { once } from "node:events";
 import fs from "node:fs";
-import type { EventEmitter } from "node:stream";
-import { AssetErrorCodes } from "#ELA/types.js";
-import type { AsyncNoThrow } from "#utils/no-throw.js";
-import asyncNoThrow from "#utils/no-throw.js";
-import safeDeletion from "#utils/safe-deletion.js";
+import { finished } from "node:stream/promises";
+import { okAsync, ResultAsync } from "neverthrow";
+import {
+  ELA_Error,
+  ELA_ErrorCodes,
+  ELA_HttpError,
+  ELA_IoError,
+  InterfaceError,
+  InterfaceErrorCodes,
+} from "#ELA/types.js";
+import logger from "#utils/logger/console.js";
+import reporter from "#utils/logger/reporter.js";
+import { safeUnlink } from "#utils/neverthrow/promises/fs.js";
 import type { FetchAssetOptions, OnFetchChunk } from "./types.js";
 
-const onceEmitter = (emitter: EventEmitter, event: string | symbol) =>
-  once(emitter, event);
+const errorPromise = (ws: fs.WriteStream) =>
+  once(ws, "error").then(([err]) => {
+    throw err;
+  });
 
-const ntOnce = asyncNoThrow(onceEmitter);
-
-async function iterateChunks(
+function iterateChunks(
   res: Response,
-  file: fs.WriteStream,
+  ws: fs.WriteStream,
   onChunk?: OnFetchChunk,
-): AsyncNoThrow<void> {
-  if (res.body === null) return [new Error(AssetErrorCodes.HTTP_MISSING_BODY)];
+): ResultAsync<void, Error> {
+  const body = res.body;
 
-  for await (const chunk of res.body) {
-    await onChunk?.(chunk);
-    if (!file.write(chunk)) {
-      await ntOnce(file, "drain");
-    }
+  if (body === null) {
+    return ResultAsync.fromPromise(
+      Promise.reject(
+        new ELA_HttpError(ELA_ErrorCodes.HTTP_MISSING_BODY, res.url, null),
+      ),
+      (e) => e as Error,
+    );
   }
-  return [null];
+
+  return ResultAsync.fromPromise(
+    (async () => {
+      for await (const chunk of body) {
+        onChunk?.(chunk);
+
+        if (!ws.write(chunk)) {
+          await Promise.race([once(ws, "drain"), errorPromise(ws)]);
+        }
+      }
+    })(),
+    (e) =>
+      e instanceof ELA_Error
+        ? e
+        : new InterfaceError(InterfaceErrorCodes.RAW_ERROR, e),
+  );
 }
 
-export default async function writeAsset(
+export default function writeAsset(
   res: Response,
   outputPath: string,
   opts?: FetchAssetOptions,
-): AsyncNoThrow<void> {
-  await opts?.onStart?.(res);
-  const file = fs.createWriteStream(outputPath);
+): ResultAsync<void, Error> {
+  const { onStart, onError, onEnd, onFinish } = opts || {};
 
-  const ntIterateChunks = asyncNoThrow<NodeJS.ErrnoException>(iterateChunks);
+  let chain: ResultAsync<void, Error> = onStart ? onStart(res) : okAsync();
+  chain = chain.orElse((error) => reporter({ error }));
 
-  const [err] = await ntIterateChunks(res, file, opts?.onChunk);
+  const ws = fs.createWriteStream(outputPath);
 
-  if (err === null) {
-    file.end();
-    await ntOnce(file, "finish");
-    await opts?.onFinish?.();
-  } else {
-    file.destroy(err);
-    await safeDeletion(outputPath, false);
-    await opts?.onError?.();
-  }
+  chain = chain
+    .andThen(() => iterateChunks(res, ws, opts?.onChunk))
+    .mapErr((error) => {
+      ws.destroy(error);
+      onError?.();
 
-  await opts?.onEnd?.();
+      const streamWError = new ELA_IoError(
+        ELA_ErrorCodes.STREAM_W_ERROR,
+        outputPath,
+        error,
+      );
 
-  return [
-    err === null
-      ? null
-      : new Error(AssetErrorCodes.FETCH_W_STREAM_ERROR, { cause: err }),
-  ];
+      safeUnlink(outputPath).match(
+        () => {},
+        (ulErr) => logger.warn(JSON.stringify(ulErr)),
+      );
+
+      return streamWError;
+    })
+    .andThen(() => {
+      ws.end();
+
+      let finishChain = ResultAsync.fromPromise(
+        finished(ws),
+        (e) =>
+          new ELA_IoError(ELA_ErrorCodes.STREAM_W_FINISH_ERROR, outputPath, e),
+      );
+
+      if (onFinish) finishChain = finishChain.andTee(onFinish);
+
+      return finishChain.map(() => undefined);
+    });
+
+  if (onEnd) chain = chain.andTee(onEnd).orTee(onEnd);
+
+  return chain;
 }

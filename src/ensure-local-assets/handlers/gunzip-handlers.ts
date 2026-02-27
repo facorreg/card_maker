@@ -1,4 +1,4 @@
-import { AssetErrorCodes } from "#ELA/types.js";
+import { errAsync, okAsync } from "neverthrow";
 import type {
   GzipOptions,
   OnErrorGzip,
@@ -30,45 +30,35 @@ export default class GzipHandlers {
     this.outputFileName = extractFileName(outputFilePath);
   }
 
-  onStart: OnStartGzip = async (size) => {
-    const [errPb, pb] = this.multiBar.create(
-      this.outputFileName,
-      "decompress",
-      size,
-    );
-    /* handle Log */
-    if (errPb) {
-      await reporter({
-        errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
+  onStart: OnStartGzip = (size) => {
+    const r = this.multiBar.create(this.outputFileName, "decompress", size);
+
+    if (r.isErr()) {
+      return reporter({
         file: this.compressedFileName,
-        error: errPb,
-      });
+        error: r.error,
+      }).andThen(() => errAsync(r.error));
     }
 
-    this.pb = pb ?? null;
-
-    return [null];
+    this.pb = r.value;
+    return okAsync(undefined);
   };
 
   onTransform: OnTransformGzip = (chunk) => {
     this.decompressedSize += chunk.length;
     this?.pb?.update?.(this.decompressedSize);
-    return [null];
   };
 
   onSuccess: OnSuccessGzip = () => {
     this?.pb?.success();
-    return [null];
   };
 
   onFinish: OnFinishGzip = () => {
     this?.pb?.stop();
-    return [null];
   };
 
   onError: OnErrorGzip = () => {
     this?.pb?.stop();
-    return [null];
   };
 
   methodsToOpts = (): GzipOptions => ({

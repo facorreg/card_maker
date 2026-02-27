@@ -1,6 +1,7 @@
-import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { okAsync } from "neverthrow";
 import fetchAsset from "#ELA/fetch-asset/index.js";
+import writeAsset from "#ELA/fetch-asset/write-asset.js";
 import FetchHandlers from "#ELA_Handlers/fetch-handlers.js";
 import GzipHandlers from "#ELA_Handlers/gunzip-handlers.js";
 import UnzipHandlers from "#ELA_Handlers/unzip-handlers.js";
@@ -9,11 +10,14 @@ import customAccess from "#ELA_Utils/custom-access.js";
 import gunzip from "#ELA_Utils/decompress/gunzip/index.js";
 import unzip from "#ELA_Utils/decompress/unzip/index.js";
 import type { Manifest } from "#src/types.js";
-import asyncNoThrow from "#utils/no-throw.js";
+import {
+  safeMkdir,
+  safeRm,
+  safeUnlink,
+} from "#utils/neverthrow/promises/fs.js";
 import type { MultiBar } from "#utils/progress.js";
 import type { Step } from "#utils/run-steps/types.js";
-import safeDeletion from "#utils/safe-deletion.js";
-import { AssetErrorCodes, ELA_StepsCodes } from "./types.js";
+import { ELA_ErrorCodes, ELA_IoError, ELA_StepsCodes } from "./types.js";
 
 export default function getSteps(
   manifest: Manifest,
@@ -33,26 +37,31 @@ export default function getSteps(
   return [
     {
       name: ELA_StepsCodes.NOT_STARTED,
-      async run() {
-        const ntMkdir = asyncNoThrow(mkdir);
-        const [mkErr] = await ntMkdir(dictionariesDirPath, {
+      run: () => {
+        return safeMkdir(dictionariesDirPath, {
           recursive: true,
-        });
-        if (mkErr)
-          return [new Error(AssetErrorCodes.MKDIR_ERROR, { cause: mkErr })];
-        return customAccess(outputPath, outputType, isCompressed);
+        })
+          .mapErr(
+            (e) =>
+              new ELA_IoError(
+                ELA_ErrorCodes.MKDIR_ERROR,
+                dictionariesDirPath,
+                e,
+              ),
+          )
+          .andThen(() => customAccess(outputPath, outputType, isCompressed));
       },
     },
     {
       name: ELA_StepsCodes.CHECK_COMPRESSED_ARCHIVE,
-      async run() {
-        if (!compressedType) return [null, ELA_StepsCodes.DOWNLOAD]; // not supposed to happen
+      run: () => {
+        if (!compressedType) return okAsync(ELA_StepsCodes.DOWNLOAD); // not supposed to happen
         return customAccess(compressedPath, compressedType);
       },
     },
     {
       name: ELA_StepsCodes.DOWNLOAD,
-      async run() {
+      run: () => {
         const handlers = new FetchHandlers(
           manifest.url,
           compressedPath,
@@ -60,27 +69,31 @@ export default function getSteps(
           multiBar,
           manifest.roughSize,
         );
-        const [err] = await fetchAsset(
-          manifest.url,
-          compressedPath || outputPath,
-          handlers.methodsToOpts(),
-        );
 
-        if (err) return [err];
-
-        return [
-          null,
-          isCompressed ? ELA_StepsCodes.DECOMPRESS : ELA_StepsCodes.NO_ACTION,
-        ];
+        return fetchAsset(manifest.url)
+          .andThen((res) =>
+            writeAsset(
+              res,
+              isCompressed ? compressedPath : outputPath,
+              handlers.methodsToOpts(),
+            ),
+          )
+          .andThen(() =>
+            okAsync(
+              isCompressed
+                ? ELA_StepsCodes.DECOMPRESS
+                : ELA_StepsCodes.NO_ACTION,
+            ),
+          );
       },
-      async cleanup() {
-        return safeDeletion(compressedPath, false);
+      cleanup: () => {
+        return safeUnlink(compressedPath);
       },
       next: ELA_StepsCodes.DECOMPRESS,
     },
     {
       name: ELA_StepsCodes.DECOMPRESS,
-      async run() {
+      run: () => {
         const compressedFileName = `${manifest.name}.${compressedType}`;
 
         if (isGzip) {
@@ -105,24 +118,23 @@ export default function getSteps(
           handlers.methodsToOpts(),
         );
       },
-      async cleanup() {
-        return safeDeletion(outputPath, isFolder);
+      cleanup() {
+        const suppress = isFolder ? safeRm : safeUnlink;
+        return suppress(outputPath);
       },
       next: ELA_StepsCodes.CLEANUP,
     },
     {
       // success cleanup
       name: ELA_StepsCodes.CLEANUP,
-      async run() {
-        return safeDeletion(compressedPath, false);
+      run: () => {
+        return safeUnlink(compressedPath);
       },
       next: ELA_StepsCodes.NO_ACTION,
     },
     {
       name: ELA_StepsCodes.NO_ACTION,
-      async run() {
-        return [null];
-      },
+      run: okAsync,
     },
   ];
 }

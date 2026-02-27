@@ -3,23 +3,23 @@
 import fs from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import chalk from "chalk";
+import { errAsync, ResultAsync } from "neverthrow";
 import { LOG_OUTPUT } from "#ELA/constants.js";
-import { type AssetErrorCodes, ELA_StepsCodes } from "#ELA/types.js";
+import { type ELA_ErrorCodes, ELA_StepsCodes } from "#ELA/types.js";
 import log from "#logger/console.js";
 import reporter from "#logger/reporter.js";
-import type { AsyncNoThrow } from "#utils/no-throw.js";
 
 enum ReadByDelimiterErrors {
   RBD_NO_DELIMITER_PROVIDED = "RBD_NO_DELIMITER_PROVIDED",
   RBD_R_ERROR = "RBD_R_ERROR",
 }
 
-async function readByDelimiter(
+function readByDelimiter(
   delimiter: string,
   cb: (match: string) => void,
-): AsyncNoThrow<void> {
+): ResultAsync<void, Error> {
   if (!delimiter) {
-    return [new Error(ReadByDelimiterErrors.RBD_NO_DELIMITER_PROVIDED)];
+    return errAsync(new Error(ReadByDelimiterErrors.RBD_NO_DELIMITER_PROVIDED));
   }
 
   const stream = fs.createReadStream(LOG_OUTPUT);
@@ -27,35 +27,34 @@ async function readByDelimiter(
 
   let buffer = "";
 
-  try {
-    for await (const chunk of stream) {
-      buffer += decoder.write(chunk);
+  return ResultAsync.fromPromise(
+    (async () => {
+      for await (const chunk of stream) {
+        buffer += decoder.write(chunk);
 
-      let idx = -1;
-      // biome-ignore lint/suspicious/noAssignInExpressions: <more readable>
-      while ((idx = buffer.indexOf(delimiter)) !== -1) {
-        const match = buffer.slice(0, idx + delimiter.length);
-        cb(match);
-        buffer = buffer.slice(idx + delimiter.length);
+        let idx = -1;
+        // biome-ignore lint/suspicious/noAssignInExpressions: <more readable>
+        while ((idx = buffer.indexOf(delimiter)) !== -1) {
+          const match = buffer.slice(0, idx + delimiter.length);
+          cb(match);
+          buffer = buffer.slice(idx + delimiter.length);
+        }
       }
-    }
 
-    buffer += decoder.end();
-    if (buffer.length) cb(buffer);
-
-    return [null];
-  } catch (err) {
-    return [new Error(ReadByDelimiterErrors.RBD_R_ERROR, { cause: err })];
-  }
+      buffer += decoder.end();
+      if (buffer.length) cb(buffer);
+    })(),
+    (err) => new Error(ReadByDelimiterErrors.RBD_R_ERROR, { cause: err }),
+  );
 }
 
-async function logSummary() {
+function logSummary() {
   let downloadSuccesses = 0;
   let downloadErrors = 0;
   let decompressSuccesses = 0;
   let decompressErrors = 0;
 
-  const extractMainError = (errCode?: AssetErrorCodes) => {
+  const extractMainError = (errCode?: ELA_ErrorCodes) => {
     if (!errCode) return;
 
     const [mainError] = errCode.split("_");
@@ -72,7 +71,7 @@ async function logSummary() {
 
   const readLogsCallback = (logStr: string) => {
     const log = JSON.parse(logStr);
-    const errCode = extractMainError(log.errCode as AssetErrorCodes);
+    const errCode = extractMainError(log.errCode as ELA_ErrorCodes);
     const anyCode = (log.code as ELA_StepsCodes) ?? errCode;
 
     switch (anyCode as ELA_StepsCodes | string) {
@@ -96,23 +95,24 @@ async function logSummary() {
     }
   };
 
-  const [err] = await readByDelimiter("\n", readLogsCallback);
-  const green = chalk.bold.green;
-  const red = chalk.bold.red;
+  return readByDelimiter("\n", readLogsCallback)
+    .andTee(() => {
+      const green = chalk.bold.green;
+      const red = chalk.bold.red;
 
-  log.info(
-    `Downloads => completed: ${green(downloadSuccesses)} | failed: ${red(downloadErrors)}`,
-  );
-  log.info(
-    `Extractions => completed: ${green(decompressSuccesses)} | failed: ${red(decompressErrors)}`,
-  );
-
-  if (err)
-    await reporter({
-      errCode: err.message,
-      file: "none",
-      error: (err.cause as Error) ?? err,
-    });
+      log.info(
+        `Downloads => completed: ${green(downloadSuccesses)} | failed: ${red(downloadErrors)}`,
+      );
+      log.info(
+        `Extractions => completed: ${green(decompressSuccesses)} | failed: ${red(decompressErrors)}`,
+      );
+    })
+    .orElse((err) =>
+      reporter({
+        file: "none",
+        error: (err.cause as Error) ?? err,
+      }).andThen(() => errAsync(err)),
+    );
 }
 
 export default logSummary;

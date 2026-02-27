@@ -1,3 +1,4 @@
+import { okAsync, type ResultAsync } from "neverthrow";
 import getSteps from "#ELA/get-steps.js";
 import { ELA_StepsCodes } from "#ELA/types.js";
 import logger from "#logger/console.js";
@@ -16,55 +17,70 @@ export default class ELA_RunStepHandler {
     this.multiBar = multiBar;
   }
 
-  async init(manifest: Manifest) {
+  init = (manifest: Manifest) => {
     this.steps = getSteps(manifest, this.multiBar);
     this.fileName = `${manifest.name}.${manifest.compressedType}`;
-  }
+  };
 
-  onNoSteps() {
+  onNoSteps = () => {
     logger.error("ELA: No state machine step found");
-  }
+  };
 
-  async onSuccess(step: Step<ELA_StepsCodes>): Promise<void> {
+  onSuccess = (step: Step<ELA_StepsCodes>): ResultAsync<void, Error> => {
     if (
       step.name !== ELA_StepsCodes.NOT_STARTED &&
       step.name !== ELA_StepsCodes.NO_ACTION
     ) {
-      await reporter({
-        code: step.name,
+      return reporter({
+        successCode: step.name,
         file: this.fileName,
       });
     }
-  }
 
-  async onError(
+    return okAsync();
+  };
+
+  onError(
     step: Step<ELA_StepsCodes>,
     stepName: ELA_StepsCodes,
-    err: Error,
-  ): Promise<void> {
-    await reporter({
-      errCode: err.message,
-      file: this.fileName,
-      error: err,
-    });
+    // error: Error,
+  ): ResultAsync<void, Error> {
+    const onCleanupError = (cleanupError: Error) => {
+      return reporter({
+        error: cleanupError,
+        file: this.fileName,
+      })
+        .mapErr(() => undefined)
+        .orElse(() => okAsync(undefined));
+    };
 
     switch (process.env.ELA_ERROR_CLEANUP) {
       case "none":
-        return;
-      case "clean_step":
-        await step?.cleanup?.();
         break;
+      case "clean_step":
+        if (!step?.cleanup) break;
+        return step.cleanup().orElse(onCleanupError);
       case "clean_all": {
         let index = this.steps.findIndex(({ name }) => stepName === name);
+        let chain: ResultAsync<void, Error> = okAsync(undefined);
+
         while (index >= 0) {
-          await this.steps[index]?.cleanup?.();
+          const step = this.steps[index];
+          if (step?.cleanup) {
+            const cleanup = step.cleanup;
+            chain = chain.andThen(() => cleanup().orElse(onCleanupError));
+          }
+
           index--;
         }
-        break;
+
+        return chain;
       }
       default:
-        return;
+        break;
     }
+
+    return okAsync();
   }
 
   methodsToOpts = (): RunStepsOpts<ELA_StepsCodes> => ({

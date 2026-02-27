@@ -1,17 +1,18 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { LOG_FOLDER_PATH, LOG_OUTPUT } from "#ELA/constants.js";
-import { AssetErrorCodes, type ELA_StepsCodes } from "#ELA/types.js";
-import asyncNoThrow, { type AsyncNoThrow } from "#utils/no-throw.js";
+// import { safeMkdir, safeWriteFile } from "node:fs/promises";
 
-const errorReporter = {
-  mkdirFailed: new Error(AssetErrorCodes.MKDIR_ERROR),
-  writingFailed: new Error(AssetErrorCodes.FILE_WRITING_ERROR),
-};
+import { okAsync, type ResultAsync } from "neverthrow";
+import { LOG_FOLDER_PATH, LOG_OUTPUT } from "#ELA/constants.js";
+import {
+  ELA_ErrorCodes,
+  ELA_IoError,
+  type ELA_StepsCodes,
+} from "#ELA/types.js";
+import { safeMkdir, safeWriteFile } from "#utils/neverthrow/promises/fs.js";
+import logger from "./console.js";
 
 interface DataFormatterOpts {
-  code?: ELA_StepsCodes;
-  errCode?: AssetErrorCodes | string;
-  file: string;
+  successCode?: ELA_StepsCodes;
+  file?: string;
   error?: Error;
 }
 function dataFormatter(opts: DataFormatterOpts) {
@@ -23,21 +24,27 @@ function dataFormatter(opts: DataFormatterOpts) {
   return `${input}\n`;
 }
 
-export default async function reporter(
+export default function reporter(
   opts: DataFormatterOpts,
-): AsyncNoThrow<void> {
+): ResultAsync<void, Error> {
   const input = dataFormatter(opts);
 
-  const ntMkdir = asyncNoThrow(mkdir, errorReporter.mkdirFailed);
-  const ntWriteFile = asyncNoThrow(writeFile, errorReporter.writingFailed);
-
-  const [mkdirErr] = await ntMkdir(LOG_FOLDER_PATH, { recursive: true });
-  if (mkdirErr) return [mkdirErr];
-
-  const [wfError] = await ntWriteFile(LOG_OUTPUT, input, {
-    flag: "a",
-  });
-  if (wfError) return [wfError];
-
-  return [null];
+  return safeMkdir(LOG_FOLDER_PATH, { recursive: true })
+    .mapErr(
+      (e) => new ELA_IoError(ELA_ErrorCodes.MKDIR_ERROR, LOG_FOLDER_PATH, e),
+    )
+    .andThen(() =>
+      safeWriteFile(LOG_OUTPUT, input, {
+        flag: "a",
+      }),
+    )
+    .orElse((e) => {
+      const logError = new ELA_IoError(
+        ELA_ErrorCodes.FILE_W_ERROR,
+        LOG_OUTPUT,
+        e,
+      );
+      logger.error("Reporter failed: ", JSON.stringify(logError));
+      return okAsync();
+    });
 }

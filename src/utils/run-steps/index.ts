@@ -1,37 +1,49 @@
+import { errAsync, okAsync, type ResultAsync } from "neverthrow";
+import {
+  ELA_ErrorHandled,
+  InterfaceError,
+  InterfaceErrorCodes,
+} from "#ELA/types.js";
 import type { Step } from "#utils/run-steps/types.js";
 import type { RunStepsOpts } from "./types.js";
 
-export default async function runSteps<C>(
+export default function runSteps<C>(
   steps: Step<C>[],
   noAction: C,
   dataIsStepCode: (x: unknown) => x is C,
   opts: RunStepsOpts<C>,
-) {
-  // !steps.length would not work with steps[0].name
-  if (!steps[0]) {
-    await opts?.onNoSteps?.();
-    return;
+): ResultAsync<void, Error> {
+  const [firstStep] = steps;
+  // !steps.length would not work with firstStep.name
+  if (!firstStep) {
+    opts?.onNoSteps?.();
+    return errAsync(
+      new InterfaceError(InterfaceErrorCodes.EMPTY_MANIFEST, null),
+    );
   }
 
-  let stepName = steps[0].name;
+  const runNext = (stepName: C): ResultAsync<void, Error> => {
+    const step = steps.find((s) => s.name === stepName);
+    if (!step) return okAsync(undefined);
 
-  for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
-    const step = steps[stepIndex];
+    return step
+      .run()
+      .orElse((error) => {
+        opts?.onError(step, stepName, error as Error);
+        return errAsync(new ELA_ErrorHandled(error as Error));
+      })
+      .andThen((data) => {
+        opts?.onSuccess(step);
 
-    if (!step) break; // should not happen
-    if (stepName !== step.name) continue;
+        const nextStep = dataIsStepCode(data) ? data : (step.next ?? noAction);
 
-    const [err, data] = await step.run();
+        if (nextStep === noAction) {
+          return okAsync(undefined);
+        }
 
-    if (err !== null) {
-      await opts?.onError(step, stepName, err);
-      return;
-    }
+        return runNext(nextStep);
+      });
+  };
 
-    await opts?.onSuccess?.(step);
-
-    const dataIsStep = dataIsStepCode(data);
-
-    stepName = dataIsStep ? data : (step.next ?? noAction);
-  }
+  return runNext(firstStep.name);
 }

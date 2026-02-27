@@ -1,14 +1,15 @@
-import type { AsyncNoThrow } from "#utils/no-throw.js";
+import type { ResultAsync } from "neverthrow";
 
 export interface Step<C> {
   name: C;
-  run: () => AsyncNoThrow<C> | AsyncNoThrow<void>;
-  cleanup?: () => AsyncNoThrow<void>;
+  // biome-ignore lint/suspicious/noConfusingVoidType: <Pain in the ass, creates errors where void is perfectly fine>
+  run: () => ResultAsync<C | void, Error>;
+  cleanup?: () => ResultAsync<void, Error>;
   next?: C;
 }
 
 export interface RunStepsOpts<C> {
-  onNoSteps: () => Promise<void> | void;
-  onSuccess: (step: Step<C>) => Promise<void> | void;
-  onError: (step: Step<C>, stepName: C, err: Error) => Promise<void> | void;
+  onNoSteps: () => void;
+  onSuccess: (step: Step<C>) => ResultAsync<void, Error>;
+  onError: (step: Step<C>, stepName: C, err: Error) => ResultAsync<void, Error>;
 }

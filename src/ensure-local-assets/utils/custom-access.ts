@@ -1,25 +1,23 @@
-import { access, constants } from "node:fs/promises";
+import { constants } from "node:fs/promises";
+import { errAsync, okAsync, type ResultAsync } from "neverthrow";
 import type { DataTypes, OutputTypes } from "#src/types.js";
-import asyncNoThrow, { type AsyncNoThrow } from "#utils/no-throw.js";
-import { AssetErrorCodes, ELA_StepsCodes } from "../types.js";
+import { safeAccess } from "#utils/neverthrow/promises/fs.js";
+import { ELA_ErrorCodes, ELA_IoError, ELA_StepsCodes } from "../types.js";
 
 type AccessMode = (typeof constants)[keyof typeof constants];
 
-async function customAccess(
-  url: string,
+function customAccess(
+  path: string,
   c: AccessMode,
-): AsyncNoThrow<void, Error | NodeJS.ErrnoException> {
-  const ntAccess = asyncNoThrow<NodeJS.ErrnoException>(access);
-  const [err] = await ntAccess(url, c);
+): ResultAsync<void, ELA_IoError> {
+  return safeAccess(path, c).orElse((err: NodeJS.ErrnoException) => {
+    const code =
+      err.code === "ENOENT"
+        ? ELA_ErrorCodes.FILE_STATE_MISSING
+        : ELA_ErrorCodes.FILE_R_ERROR;
 
-  if (err === null) return [null];
-
-  const errCode =
-    err.code === "ENOENT"
-      ? AssetErrorCodes.FILE_STATE_MISSING
-      : AssetErrorCodes.FILE_STATE_UNREACHABLE;
-
-  return [new Error(errCode, { cause: err })];
+    return errAsync(new ELA_IoError(code, path, err));
+  });
 }
 
 function isOutputType(x: DataTypes): x is OutputTypes {
@@ -27,34 +25,35 @@ function isOutputType(x: DataTypes): x is OutputTypes {
   return (outputTypes as string[]).includes(x);
 }
 
-export default async function customAccessHandler(
+export default function customAccessHandler(
   path: string,
   type: DataTypes,
   hasCompressedArchive = false,
-): AsyncNoThrow<ELA_StepsCodes> {
+): ResultAsync<ELA_StepsCodes, ELA_IoError> {
   const accessFlag = type === "folder" ? constants.F_OK : constants.W_OK;
-  const [err] = await customAccess(path, accessFlag);
 
-  if (err !== null) {
-    if (err.message !== AssetErrorCodes.FILE_STATE_MISSING) return [err];
+  return customAccess(path, accessFlag)
+    .andThen(() => {
+      switch (type) {
+        case "gz":
+        case "zip":
+          return okAsync(ELA_StepsCodes.DECOMPRESS);
+        default:
+          return okAsync(ELA_StepsCodes.NO_ACTION);
+      }
+    })
+    .orElse((error) => {
+      if (error.code !== ELA_ErrorCodes.FILE_STATE_MISSING)
+        return errAsync(error);
 
-    const typeIsExport = isOutputType(type);
+      const typeIsExport = isOutputType(type);
 
-    if (typeIsExport && !hasCompressedArchive) {
-      return [null, ELA_StepsCodes.DOWNLOAD];
-    }
+      if (typeIsExport && !hasCompressedArchive) {
+        return okAsync(ELA_StepsCodes.DOWNLOAD);
+      }
 
-    return isOutputType(type)
-      ? [null, ELA_StepsCodes.CHECK_COMPRESSED_ARCHIVE]
-      : [null, ELA_StepsCodes.DOWNLOAD];
-  }
-
-  switch (type) {
-    case "gz":
-      return [null, ELA_StepsCodes.DECOMPRESS];
-    case "zip":
-      return [null, ELA_StepsCodes.DECOMPRESS];
-    default:
-      return [null, ELA_StepsCodes.NO_ACTION];
-  }
+      return typeIsExport
+        ? okAsync(ELA_StepsCodes.CHECK_COMPRESSED_ARCHIVE)
+        : okAsync(ELA_StepsCodes.DOWNLOAD);
+    });
 }

@@ -1,34 +1,29 @@
+import { ok, type Result, ResultAsync } from "neverthrow";
 import type {
   FetchAssetOptions,
   OnFetchChunk,
   OnFetchStart,
 } from "#ELA/fetch-asset/types.js";
-import { AssetErrorCodes } from "#ELA/types.js";
+// import { ELA_ErrorCodes } from "#ELA/types.js";
 import extractFileName from "#ELA_Utils/extract-file-name.js";
 import reporter from "#utils/logger/reporter.js";
 import type { MultiBar, SingleBar } from "#utils/progress.js";
-import safeDeletion from "#utils/safe-deletion.js";
 
-async function createPbHandler(
+function createPbHandler(
   fileName: string,
   contentLength: number,
   multiBar: MultiBar,
-): Promise<SingleBar | undefined> {
-  const [error, progress] = multiBar.create(
-    fileName,
-    "download",
-    contentLength,
-  );
+): Result<SingleBar | undefined, Error> {
+  return multiBar
+    .create(fileName, "download", contentLength)
+    .orElse((error) => {
+      reporter({ file: fileName, error }).match(
+        () => {},
+        (e) => e,
+      );
 
-  if (error) {
-    await reporter({
-      errCode: AssetErrorCodes.SINGLEBAR_CREATE_ERROR,
-      file: fileName,
-      error,
+      return ok(undefined);
     });
-  }
-
-  return progress;
 }
 
 export default class FetchHandlers {
@@ -54,20 +49,26 @@ export default class FetchHandlers {
     this.roughSize = roughSize || 0;
   }
 
-  getContentLengthFromHeaders(res: Response): number {
+  getContentLengthFromHeaders = (res: Response): number => {
     return Number(res.headers.get("content-length") ?? 0);
-  }
-
-  onWriteStart: OnFetchStart = async (res) => {
-    const contentLength =
-      this.getContentLengthFromHeaders(res) || this.roughSize;
-
-    this.pb = await createPbHandler(
-      extractFileName(this.compressedFilePath || this.outputFilePath),
-      contentLength,
-      this.multiBar,
-    );
   };
+
+  onWriteStart: OnFetchStart = (res) =>
+    ResultAsync.fromPromise(
+      (async () => {
+        const contentLength =
+          this.getContentLengthFromHeaders(res) || this.roughSize;
+
+        createPbHandler(
+          extractFileName(this.compressedFilePath || this.outputFilePath),
+          contentLength,
+          this.multiBar,
+        ).andTee((pb) => {
+          this.pb = pb;
+        });
+      })(),
+      (e) => e as Error,
+    );
 
   onChunk: OnFetchChunk = (chunk) => {
     this.downloaded += chunk.length;
@@ -83,8 +84,8 @@ export default class FetchHandlers {
     this.pb?.success?.();
   };
 
-  onError = async () => {
-    await safeDeletion(this.outputFilePath, false);
+  onError = () => {
+    // await safeDeletion(this.outputFilePath, false);
     this.pb?.error();
   };
 
@@ -92,7 +93,7 @@ export default class FetchHandlers {
     this.pb?.stop();
   };
 
-  methodsToOpts(): FetchAssetOptions {
+  methodsToOpts = (): FetchAssetOptions => {
     return {
       onStart: this.onWriteStart,
       onChunk: this.onChunk,
@@ -100,5 +101,5 @@ export default class FetchHandlers {
       onError: this.onError,
       onEnd: this.onEnd,
     };
-  }
+  };
 }

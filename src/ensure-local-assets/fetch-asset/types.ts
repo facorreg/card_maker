@@ -1,8 +1,8 @@
-export type OnFetchStart = (res: Response) => Promise<void> | void;
-export type OnFetchChunk = (
-  chunk: Uint8Array<ArrayBuffer>,
-) => Promise<void> | void;
-export type DefaultFetchCB = () => Promise<void> | void;
+import type { ResultAsync } from "neverthrow";
+
+export type OnFetchStart = (res: Response) => ResultAsync<void, Error>;
+export type OnFetchChunk = (chunk: Uint8Array<ArrayBuffer>) => void;
+export type DefaultFetchCB = () => void;
 
 export interface FetchAssetOptions {
   onStart?: OnFetchStart;

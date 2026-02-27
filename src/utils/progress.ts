@@ -1,7 +1,7 @@
 import chalk from "chalk";
 
 import cliProgress from "cli-progress";
-import type { NoThrow } from "#utils/no-throw.js";
+import { err, ok, type Result } from "neverthrow";
 
 function percentage(part: number, whole: number): number {
   if (whole === 0) return 0;
@@ -23,7 +23,7 @@ export class MultiBar<S extends StatusStates = StatusStates> {
     this.statusStates = statusStates;
   }
 
-  start(): cliProgress.MultiBar {
+  start = (): cliProgress.MultiBar => {
     this.multiBar = new cliProgress.MultiBar({
       format: `${"[{status}]"} | {bar} | {percentage}% | {fileName}`,
       barIncompleteChar: " ▁",
@@ -33,14 +33,14 @@ export class MultiBar<S extends StatusStates = StatusStates> {
     });
 
     return this.multiBar;
-  }
+  };
 
-  create(
+  create = (
     fileName: string,
     state: string,
     contentLength?: number,
-  ): NoThrow<SingleBar> {
-    if (!contentLength) return [new Error("No content length")];
+  ): Result<SingleBar, Error> => {
+    if (!contentLength) return err(new Error("No content length"));
 
     const bar = this.multiBar.create(100, 0, {
       status: chalk.blue.bold(formatStatus(this.statusStates[state]?.start)),
@@ -49,16 +49,15 @@ export class MultiBar<S extends StatusStates = StatusStates> {
 
     this.bars.push(bar);
 
-    return [
-      null,
+    return ok(
       new SingleBar(bar, this.statusStates[state] || {}, contentLength),
-    ];
-  }
+    );
+  };
 
-  stop() {
+  stop = () => {
     this.multiBar.stop();
     console.log(""); //\n
-  }
+  };
 }
 
 export class SingleBar {
@@ -76,23 +75,23 @@ export class SingleBar {
     this.contentLength = contentLength;
   }
 
-  update(downloaded: number, obj?: object): void {
+  update = (downloaded: number, obj?: object): void => {
     this.pb?.update(percentage(downloaded, this.contentLength), obj);
-  }
+  };
 
-  success(): void {
+  success = (): void => {
     this.pb?.update({
       status: chalk.bold.green(formatStatus(this.state.success)),
     });
-  }
+  };
 
-  error(): void {
+  error = (): void => {
     this.pb?.update({
       status: chalk.bold.red(formatStatus(this.state.error)),
     });
-  }
+  };
 
-  stop(): void {
+  stop = (): void => {
     this.pb?.stop();
-  }
+  };
 }

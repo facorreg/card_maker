@@ -2,15 +2,14 @@ import fs from "node:fs";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import { AssetErrorCodes } from "#ELA/types.js";
-import type { AsyncNoThrow, NoThrow } from "#utils/no-throw.js";
+import { errAsync, okAsync, ResultAsync } from "neverthrow";
+import { ELA_ErrorCodes, ELA_IoError } from "#ELA/types.js";
 
-type CbReturn = NoThrow<void> | AsyncNoThrow<void>;
-export type OnStartGzip = (size: number) => CbReturn;
-export type OnTransformGzip = (chunk: Buffer) => CbReturn;
-export type OnSuccessGzip = () => CbReturn;
-export type OnErrorGzip = () => CbReturn;
-export type OnFinishGzip = () => CbReturn;
+export type OnStartGzip = (size: number) => ResultAsync<void, Error>;
+export type OnTransformGzip = (chunk: Buffer) => void;
+export type OnSuccessGzip = () => void;
+export type OnErrorGzip = () => void;
+export type OnFinishGzip = () => void;
 export interface GzipOptions {
   onStart?: OnStartGzip;
   onTransform?: OnTransformGzip;
@@ -19,57 +18,67 @@ export interface GzipOptions {
   onError?: OnErrorGzip;
 }
 
-async function gzipDecompressedSize(path: string): AsyncNoThrow<number> {
-  const fh = await fs.promises.open(path, "r");
-  try {
-    const stat = await fh.stat();
-    const buf = Buffer.alloc(4);
-    await fh.read(buf, 0, 4, stat.size - 4);
-
-    return [null, buf.readUInt32LE(0)];
-  } catch (e) {
-    return [e as Error];
-  } finally {
-    await fh.close();
-  }
+function gzipDecompressedSize(path: string): ResultAsync<number, Error> {
+  return ResultAsync.fromPromise(
+    fs.promises.open(path, "r"),
+    (e) => e as Error,
+  ).andThen((fh) => {
+    return ResultAsync.fromPromise(fh.stat(), (e) => e as Error).andThen(
+      (stat) => {
+        const buf = Buffer.alloc(4);
+        return ResultAsync.fromPromise(
+          fh.read(buf, 0, 4, stat.size - 4),
+          (e) => e as Error,
+        )
+          .andThen(() => okAsync(buf.readUInt32LE(0)))
+          .andTee(fh.close)
+          .orTee(fh.close);
+      },
+    );
+  });
 }
 
-export default async function gunzip(
+export default function gunzip(
   compressedPath: string,
   outputPath: string,
   opts?: GzipOptions,
-): AsyncNoThrow<void> {
-  const [errGzSize, decompressedSize] =
-    await gzipDecompressedSize(compressedPath);
-  if (errGzSize !== null)
-    return [
-      new Error(AssetErrorCodes.GZIP_INVALID_FORMAT, { cause: errGzSize }),
-    ]; // invalid gzip format
-
-  await opts?.onStart?.(decompressedSize || 0);
+): ResultAsync<void, Error> {
+  const { onStart, onTransform, onFinish, onSuccess } = opts || {};
 
   const transform = new Transform({
-    transform: async (chunk: Buffer, _, callback) => {
-      await opts?.onTransform?.(chunk);
+    transform: (chunk: Buffer, _, callback) => {
+      onTransform?.(chunk);
       callback(null, chunk);
     },
   });
 
-  try {
-    await pipeline(
-      fs.createReadStream(compressedPath),
-      createGunzip(),
-      transform,
-      fs.createWriteStream(outputPath),
-    );
-
-    await opts?.onSuccess?.();
-  } catch (err) {
-    await opts?.onError?.();
-    return [new Error(AssetErrorCodes.GZIP_ERROR, { cause: err })];
-  } finally {
-    await opts?.onFinish?.();
-  }
-
-  return [null];
+  return gzipDecompressedSize(compressedPath)
+    .orElse((error) =>
+      errAsync(
+        new ELA_IoError(ELA_ErrorCodes.GZIP_INVALID_FORMAT, outputPath, error),
+      ),
+    )
+    .andThen((gzipDecompressedSize) =>
+      onStart ? onStart(gzipDecompressedSize || 0) : okAsync(),
+    )
+    .andThen(() =>
+      ResultAsync.fromPromise(
+        pipeline(
+          fs.createReadStream(compressedPath),
+          createGunzip(),
+          transform,
+          fs.createWriteStream(outputPath),
+        ),
+        (e) => e,
+      ).orElse((error) =>
+        errAsync(new ELA_IoError(ELA_ErrorCodes.GZIP_ERROR, outputPath, error)),
+      ),
+    )
+    .orTee(() => {
+      onFinish?.();
+    })
+    .andTee(() => {
+      onSuccess?.();
+      onFinish?.();
+    });
 }

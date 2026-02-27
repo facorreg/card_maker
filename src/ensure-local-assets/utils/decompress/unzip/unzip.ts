@@ -1,13 +1,12 @@
 import fs from "node:fs";
-import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { Transform, type TransformCallback } from "node:stream";
+import type Stream from "node:stream";
+import { Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import yauzl, { type Entry, type ZipFile } from "yauzl";
-import { AssetErrorCodes } from "#ELA/types.js";
-import asyncNoThrow, {
-  type AsyncNoThrow,
-  type NoThrow,
-} from "#utils/no-throw.js";
+import { ELA_ErrorCodes, ELA_IoError } from "#ELA/types.js";
+import { safeMkdir } from "#utils/neverthrow/promises/fs.js";
 import type {
   OnDecompressUnzip,
   OnErrorUnzip,
@@ -25,7 +24,7 @@ interface IterateEntriesCbOptions {
 
 type IterateEntriesCb = (
   opts: IterateEntriesCbOptions,
-) => AsyncNoThrow<void> | NoThrow<void>;
+) => ResultAsync<void, Error>;
 
 export default class Unzip {
   compressedPath: string;
@@ -55,63 +54,109 @@ export default class Unzip {
     this.renameTo = opts.renameTo || "";
   }
 
-  async start() {
-    const [err] = await this.getDecompressedSize();
-    if (err !== null) await this?.onGetDecompressedSizeError?.(err);
-    this.onStart?.(this.decompressedSize);
-  }
+  start = () => {
+    return this.getDecompressedSize()
+      .orTee((error) => {
+        this?.onGetDecompressedSizeError?.(error);
+      })
+      .andThen(() =>
+        this.onStart ? this.onStart?.(this.decompressedSize) : okAsync(),
+      );
+  };
 
-  iterateEntries(
+  iterateEntries = (
     callback: IterateEntriesCb,
     type: "decompress" | "traverse",
-  ): AsyncNoThrow<void> {
-    return new Promise((resolve) => {
-      yauzl.open(this.compressedPath, { lazyEntries: true }, (err, zipfile) => {
-        if (err)
-          return resolve([
-            new Error(AssetErrorCodes.UNZIP_OPEN_ERROR, { cause: err }),
-          ]);
-        zipfile.readEntry();
-        zipfile.on("entry", async (entry) => {
-          const isFolder = /\/$/.test(entry.fileName);
+  ): ResultAsync<void, Error> => {
+    return ResultAsync.fromPromise(
+      new Promise<void>((resolve, reject) => {
+        yauzl.open(
+          this.compressedPath,
+          { lazyEntries: true },
+          (err, zipfile) => {
+            const closeAndReject = (error: Error) => {
+              zipfile.close();
+              return reject(error);
+            };
 
-          if (!isFolder) {
-            // Directory file names end with '/'.
-            const promise = callback({ entry, zipfile });
-            const [e] = promise instanceof Promise ? await promise : promise;
+            const closeAndResolve = () => {
+              zipfile.close();
+              return resolve();
+            };
 
-            if (type === "decompress")
-              this?.onDecompress?.(entry, this.outputPath, e);
-          }
+            if (err)
+              return closeAndReject(
+                new ELA_IoError(
+                  ELA_ErrorCodes.UNZIP_OPEN_ERROR,
+                  this.compressedPath,
+                  err,
+                ),
+              );
 
-          zipfile.readEntry();
-        });
-        zipfile.on("error", (zipFileErr) => {
-          this?.onError?.();
-          return resolve([
-            new Error(AssetErrorCodes.UNZIP_ERROR, { cause: zipFileErr }),
-          ]);
-        });
-        zipfile.on("end", () => {
-          this?.onSuccess?.();
-          return resolve([null]);
-        });
-      });
-    });
-  }
+            zipfile.readEntry();
+            zipfile.on("entry", async (entry) => {
+              const isFolder = /\/$/.test(entry.fileName);
 
-  async mkdir(fileName: string): AsyncNoThrow<void> {
+              if (!isFolder) {
+                // Directory file names end with '/'.
+                await callback({ entry, zipfile })
+                  .andTee(() => {
+                    if (type === "decompress")
+                      this?.onDecompress?.(entry, this.outputPath);
+                  })
+                  .orTee((error) => {
+                    return closeAndReject(
+                      new ELA_IoError(
+                        ELA_ErrorCodes.UNZIP_ERROR,
+                        this.outputPath,
+                        error,
+                      ),
+                    );
+                  });
+              }
+
+              zipfile.readEntry();
+            });
+
+            zipfile.once("error", (error) => {
+              this?.onError?.();
+
+              return closeAndReject(
+                new ELA_IoError(
+                  ELA_ErrorCodes.UNZIP_ERROR,
+                  this.outputPath,
+                  error,
+                ),
+              );
+            });
+
+            zipfile.once("end", () => {
+              this?.onSuccess?.();
+              return closeAndResolve();
+            });
+          },
+        );
+      }),
+      (e) => e as Error,
+    );
+  };
+
+  mkdir = (fileName: string): ResultAsync<void, Error> => {
     const zipFolderSubpath = path.dirname(fileName);
     const folderPath = path.join(this.outputPath, zipFolderSubpath);
 
-    const ntMkdir = asyncNoThrow(mkdir, new Error(AssetErrorCodes.MKDIR_ERROR));
+    // const ntMkdir = asyncNoThrow(mkdir, new Error(ELA_ErrorCodes.MKDIR_ERROR));
 
-    const [err] = await ntMkdir(folderPath, { recursive: true });
+    return safeMkdir(folderPath, { recursive: true })
+      .orElse((error) =>
+        errAsync(
+          new ELA_IoError(ELA_ErrorCodes.MKDIR_ERROR, folderPath, error),
+        ),
+      )
+      .map(() => undefined);
+  };
 
-    return [err];
-  }
-
-  rename(oldFilePath: string): string {
+  rename = (oldFilePath: string): string => {
     const { dir, name, ext } = path.parse(oldFilePath);
     const isDir = Boolean(dir);
 
@@ -121,78 +166,77 @@ export default class Unzip {
     }
 
     return `${this.renameTo}${ext}`;
-  }
+  };
 
-  async decompressEntryCallback({
+  decompressEntryCallback = ({
     entry,
     zipfile,
-  }: IterateEntriesCbOptions): AsyncNoThrow<void> {
-    return new Promise((resolve) => {
-      zipfile.openReadStream(entry, async (err, readStream) => {
-        if (err) {
-          return resolve([err]);
-        }
+  }: IterateEntriesCbOptions): ResultAsync<void, Error> => {
+    return ResultAsync.fromPromise(
+      (async () => {
+        const readStream = await new Promise<Stream.Readable>(
+          (resolve, reject) => {
+            zipfile.openReadStream(entry, (err, rs) => {
+              if (err) reject(err);
+              else resolve(rs);
+            });
+          },
+        );
 
         const filePath = this.renameTo
           ? this.rename(entry.fileName)
           : entry.fileName;
 
-        const [mkdErr] = await this.mkdir(filePath);
-        if (mkdErr !== null) return resolve([mkdErr]);
+        const mkdirResult = await this.mkdir(filePath);
+
+        if (mkdirResult.isErr()) {
+          throw mkdirResult.error;
+        }
 
         const ws = fs.createWriteStream(path.join(this.outputPath, filePath));
 
-        const done = async (e?: Error) => {
-          ws.removeAllListeners();
-          readStream.removeAllListeners();
-
-          return resolve([e ?? null]);
-        };
-
-        ws.once("finish", done);
-        ws.once("error", done);
-        readStream.once("error", done);
-
         if (this.onTransform) {
-          readStream
-            .pipe(
-              new Transform({
-                transform: (chunk: Buffer, _, callback: TransformCallback) => {
-                  this?.onTransform?.(chunk, entry);
-                  callback(null, chunk);
-                },
-              }),
-            )
-            .pipe(ws);
-        } else readStream.pipe(ws);
-      });
-    });
-  }
+          await pipeline(
+            readStream,
+            new Transform({
+              transform: (chunk, _, cb) => {
+                this.onTransform?.(chunk, entry);
+                cb(null, chunk);
+              },
+            }),
+            ws,
+          );
+        } else {
+          await pipeline(readStream, ws);
+        }
+      })(),
+      (e) => e as Error,
+    );
+  };
 
-  decompressEntries() {
+  decompressEntries = (): ResultAsync<void, Error> => {
     return this.iterateEntries(
       (opts) => this.decompressEntryCallback(opts),
       "decompress",
     );
-  }
+  };
 
-  getDecompressedSizeCallback({
+  getDecompressedSizeCallback = ({
     entry,
-  }: IterateEntriesCbOptions): NoThrow<void> {
+  }: IterateEntriesCbOptions): ResultAsync<void, Error> => {
     this.decompressedSize += entry.uncompressedSize;
-    return [null];
-  }
 
-  async getDecompressedSize(): AsyncNoThrow<void> {
+    return okAsync();
+  };
+
+  getDecompressedSize = (): ResultAsync<number, Error> => {
     if (!this.decompressedSize) {
-      const ret = await this.iterateEntries(
+      return this.iterateEntries(
         (opts) => this.getDecompressedSizeCallback(opts),
         "traverse",
-      );
-
-      return ret;
+      ).andThen(() => okAsync(this.decompressedSize || 0));
     }
 
-    return Promise.resolve([null]);
-  }
+    return okAsync(this.decompressedSize);
+  };
 }

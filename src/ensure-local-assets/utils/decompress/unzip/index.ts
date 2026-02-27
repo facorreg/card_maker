@@ -1,14 +1,13 @@
-import type { AsyncNoThrow } from "#utils/no-throw.js";
+import type { ResultAsync } from "neverthrow";
 import type { UnzipOptions } from "./types.js";
 import Unzip from "./unzip.js";
 
-export default async function unzip(
+export default function unzip(
   compressedPath: string,
   outputPath: string,
   opts?: UnzipOptions,
-): AsyncNoThrow<void> {
+): ResultAsync<void, Error> {
   const unzip = new Unzip(compressedPath, outputPath, opts);
-  await unzip.start();
 
-  return unzip.decompressEntries();
+  return unzip.start().andThen(unzip.decompressEntries);
 }
