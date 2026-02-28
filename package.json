@@ -13,7 +13,9 @@
 		"#ELA/*": "./dist/ensure-local-assets/*",
 		"#ELA_Utils/*": "./dist/ensure-local-assets/utils/*",
 		"#ELA_Handlers/*": "./dist/ensure-local-assets/handlers/*",
-		"#PLA": "./dist/parse-local-assets/*",
+		"#PLA/*": "./dist/parse-local-assets/*",
+		"#PLA_Utils/*": "./dist/parse-local-assets/utils/*",
+		"#PLA_Parsers/*": "./dist/parse-local-assets/parsers/*",
 		"#utils/*": "./dist/utils/*",
 		"#logger/*": "./dist/utils/logger/*",
 		"#src/*": "./dist/*"
@@ -27,12 +29,16 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
+		"@types/better-sqlite3": "^7.6.13",
 		"@types/cli-progress": "^3.11.6",
 		"@types/yauzl": "^2.10.3",
+		"better-sqlite3": "^12.6.2",
 		"chalk": "^5.6.2",
 		"cli-progress": "^3.12.0",
 		"dotenv": "^17.2.4",
 		"extract-zip": "^2.0.1",
+		"fast-xml-parser": "^5.3.6",
+		"neverthrow": "^8.2.0",
 		"yauzl": "^3.2.0"
 	}
 }

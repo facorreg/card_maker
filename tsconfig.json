@@ -13,7 +13,9 @@
       "#ELA/*": ["./src/ensure-local-assets/*"],
       "#ELA_Utils/*": ["./src/ensure-local-assets/utils/*"],
       "#ELA_Handlers/*": ["./src/ensure-local-assets/handlers/*"],
-      "#PLA/*": ["./src/parse-local-assets/*"]
+      "#PLA/*": ["./src/parse-local-assets/*"],
+      "#PLA_Utils/*": ["./src/parse-local-assets/utils/*"],
+      "#PLA_Parsers/*":["./src/parse-local-assets/parsers/*"]
     },
 
     // Environment Settings
